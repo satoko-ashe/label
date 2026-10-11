@@ -65,7 +65,45 @@ input[type=number]{background:#343746;color:var(--text);border:1px solid var(--b
 input[type=range]{cursor:pointer;accent-color:var(--accent);}
 #widthRange{width:70px;}
 #widthVal{font-size:12px;color:var(--muted);width:20px;text-align:center;}
-#zoomVal{font-size:12px;color:var(--muted);width:46px;text-align:center;font-variant-numeric:tabular-nums;}
+
+/* ★ 缩放输入框包装 */
+.zoom-input-wrap{
+  display: inline-flex;
+  align-items: center;
+  background:#343746;
+  border:1px solid var(--border);
+  border-radius:6px;
+  overflow: hidden;
+  height: 30px;
+  transition: border-color .15s;
+}
+.zoom-input-wrap:focus-within{ border-color: var(--accent); }
+#zoomInput{
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  width: 46px;
+  padding: 0 2px 0 8px;
+  text-align: right;
+  height: 100%;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+#zoomInput::-webkit-outer-spin-button,
+#zoomInput::-webkit-inner-spin-button{
+  -webkit-appearance: none;
+  margin: 0;
+}
+.zoom-input-wrap .zoom-suffix{
+  color: var(--muted);
+  font-size: 12px;
+  padding: 0 8px 0 2px;
+  user-select: none;
+}
+
 .link-btn{background:linear-gradient(135deg,#3b7ce8,#5b4ce8);border-color:#4c6de8;color:#fff;font-weight:600;}
 .link-btn:hover{background:linear-gradient(135deg,#4a88f0,#6a5cf0);}
 
@@ -86,20 +124,8 @@ input[type=range]{cursor:pointer;accent-color:var(--accent);}
 }
 .dropdown-menu button:hover{background:#3b4052;}
 .dropdown-menu button.active{background:var(--accent); color:#fff;}
-
-/* ★ 下拉分组 */
-.dropdown-menu .divider{
-  height: 1px;
-  background: var(--border);
-  margin: 5px 2px;
-}
-.dropdown-menu .section-title{
-  font-size: 11px;
-  color: var(--muted);
-  padding: 5px 12px 2px;
-  letter-spacing: .5px;
-  user-select: none;
-}
+.dropdown-menu .divider{height:1px;background:var(--border);margin:5px 2px;}
+.dropdown-menu .section-title{font-size:11px;color:var(--muted);padding:5px 12px 2px;letter-spacing:.5px;user-select:none;}
 
 #shapeDrop .dropdown-menu{min-width:170px;}
 
@@ -175,8 +201,10 @@ emoji-picker{
   overflow-x:auto;overflow-y:hidden;min-height:76px;
 }
 .pages-bar.hidden{ display:none; }
-.pages-bar::-webkit-scrollbar{height:7px;}
-.pages-bar::-webkit-scrollbar-thumb{background:#3b4050;border-radius:4px;}
+.pages-bar::-webkit-scrollbar{height:8px;}
+.pages-bar::-webkit-scrollbar-track{background:#14161c;}
+.pages-bar::-webkit-scrollbar-thumb{background:#5a6172;border-radius:4px;}
+.pages-bar::-webkit-scrollbar-thumb:hover{background:#7a8296;}
 
 .page-thumb{
   position:relative;flex:0 0 auto;width:82px;height:60px;border-radius:6px;
@@ -205,22 +233,65 @@ emoji-picker{
 .page-add:hover{border-color:var(--accent);color:var(--accent);}
 .page-add small{font-size:9px;font-weight:400;}
 .editor{flex:1 1 auto;display:flex;position:relative;overflow:hidden;min-height:0;}
+
 .notes-panel{
-  width:232px;flex:0 0 232px;background:var(--panel);
-  overflow-y:auto;overflow-x:hidden;padding:10px;
-  display:flex;flex-direction:column;gap:10px;border-right:1px solid var(--border);
+  width:232px; flex:0 0 232px;
+  background:var(--panel);
+  position: relative;
+  overflow: hidden;
+  border-right:1px solid var(--border);
 }
 .notes-panel[data-side="right"]{border-right:none;border-left:1px solid var(--border);}
-.notes-panel:empty::after{
-  content:'点击图片上的「备注」工具\n在此处添加批注';
-  white-space:pre-line;color:#5b6175;font-size:12px;
-  text-align:center;padding:24px 8px;line-height:1.9;
+
+.notes-empty{
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color:#5b6175; font-size:12px; text-align:center;
+  padding: 24px 8px; line-height:1.9;
+  pointer-events: none; user-select: none;
+  white-space: pre-line;
 }
+
 .viewport{
   flex:1 1 auto;overflow:auto;position:relative;
   display:flex;padding:34px;min-width:0;
   background:repeating-conic-gradient(#26282f 0% 25%, #202229 0% 50%) 50% / 24px 24px;
+
+  /* ★ Firefox 滚动条 */
+  scrollbar-color: #6b7285 #14161c;
+  scrollbar-width: auto;
 }
+
+/* ★ 滚动条：更显眼、更容易抓 */
+.viewport::-webkit-scrollbar{
+  width: 16px;
+  height: 16px;
+}
+.viewport::-webkit-scrollbar-track{
+  background: #14161c;
+  border-left: 1px solid #2b2f3b;
+  border-top: 1px solid #2b2f3b;
+  border-radius: 2px;
+}
+.viewport::-webkit-scrollbar-thumb{
+  background: linear-gradient(180deg, #6b7285 0%, #4a5060 100%);
+  border-radius: 8px;
+  border: 3px solid #14161c;
+  min-height: 60px;
+  min-width: 60px;
+  transition: background .15s;
+}
+.viewport::-webkit-scrollbar-thumb:hover{
+  background: linear-gradient(180deg, #8b93a8 0%, #6b7285 100%);
+}
+.viewport::-webkit-scrollbar-thumb:active{
+  background: linear-gradient(180deg, #4c8dff 0%, #3b7ce8 100%);
+  border-color: #14161c;
+}
+.viewport::-webkit-scrollbar-corner{
+  background: #14161c;
+}
+
 .canvas-wrap{
   position:relative;margin:auto;flex:0 0 auto;line-height:0;
   box-shadow:0 8px 44px rgba(0,0,0,.65);border-radius:2px;
@@ -237,9 +308,24 @@ emoji-picker{
   font-family:inherit;caret-color:#000;
 }
 .link-layer{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:8;overflow:visible;}
-.note-card{--c:#4c8dff;background:#2b2f3b;border:1px solid #3a3f4e;border-left:3px solid var(--c);border-radius:8px;overflow:hidden;transition:.15s;position:relative;}
+
+.note-card{
+  --c:#4c8dff;
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  background:#2b2f3b; border:1px solid #3a3f4e; border-left:3px solid var(--c);
+  border-radius:8px; overflow:hidden; transition:.15s;
+}
 .note-card:hover{border-color:#4a5063;}
 .note-card.sel{box-shadow:0 0 0 2px rgba(76,141,255,.55);}
+.note-card.flash{animation: flashCard 1.3s ease-out;}
+@keyframes flashCard{
+  0%   { box-shadow: 0 0 0 0 rgba(76,141,255,.95); }
+  25%  { box-shadow: 0 0 0 4px rgba(76,141,255,.85); }
+  70%  { box-shadow: 0 0 0 4px rgba(76,141,255,.35); }
+  100% { box-shadow: 0 0 0 0 rgba(76,141,255,0); }
+}
 .note-head{display:flex;align-items:center;gap:5px;padding:5px 6px 5px 8px;background:rgba(255,255,255,.03);}
 .note-num{width:17px;height:17px;border-radius:50%;background:var(--c);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
 .note-spacer{flex:1 1 auto;}
@@ -343,7 +429,10 @@ emoji-picker{
 
   <div class="group">
     <button class="icon" id="zoomOut" title="缩小">−</button>
-    <span id="zoomVal">100%</span>
+    <div class="zoom-input-wrap">
+      <input type="number" id="zoomInput" min="5" max="1200" value="100" step="5" title="输入缩放百分比（5~1200），回车应用">
+      <span class="zoom-suffix">%</span>
+    </div>
     <button class="icon" id="zoomIn" title="放大">+</button>
     <button id="zoomFit" title="适应窗口">适应</button>
     <button id="zoom100" title="实际大小">1:1</button>
@@ -354,10 +443,10 @@ emoji-picker{
   <div class="group">
     <button id="hideBtn">👁 隐藏</button>
     <button id="undoBtn" disabled>↶ 撤销</button>
+    <button id="redoBtn" disabled>↷ 重做</button>
     <button id="clearBtn" class="danger">🗑 清空本页</button>
   </div>
 
-  <!-- ★ 工具栏下拉：合并了链接 + 导出 -->
   <div class="group" style="margin-left:auto">
     <div class="dropdown" id="toolBoxDrop">
       <button class="btn link-btn" id="toolBoxBtn">🛠 工具栏 ▾</button>
@@ -428,7 +517,9 @@ emoji-picker{
 </div>
 
 <div class="editor" id="editor">
-  <div class="notes-panel" id="notesLeft" data-side="left"></div>
+  <div class="notes-panel" id="notesLeft" data-side="left">
+    <div class="notes-empty">点击图片上的「备注」工具<br>在此处添加批注</div>
+  </div>
   <div class="viewport" id="viewport">
     <div class="empty" id="empty">
       点击上方 <b>上传文件</b>，或把文件拖到这里<br>
@@ -439,7 +530,9 @@ emoji-picker{
       <textarea id="textInput" spellcheck="false" wrap="off"></textarea>
     </div>
   </div>
-  <div class="notes-panel" id="notesRight" data-side="right"></div>
+  <div class="notes-panel" id="notesRight" data-side="right">
+    <div class="notes-empty">点击图片上的「备注」工具<br>在此处添加批注</div>
+  </div>
   <svg class="link-layer" id="linkLayer"></svg>
 </div>
 
@@ -455,7 +548,7 @@ emoji-picker{
 'use strict';
 
 const FONT_FAMILY = '"Microsoft YaHei","PingFang SC","Hiragino Sans GB","Segoe UI","Noto Color Emoji","Apple Color Emoji",sans-serif';
-const MAX_HISTORY = 10;
+const MAX_HISTORY = 20;
 const LINE_HEIGHT = 1.25;
 const HIGHLIGHT_ALPHA = 0.35;
 const MIN_ZOOM = 0.05, MAX_ZOOM = 12, MAX_CANVAS_PIXELS = 48e6;
@@ -504,10 +597,10 @@ const bgColorPicker = $('bgColorPicker'), bgClearBtn = $('bgClearBtn');
 const bgPresets = Array.from(document.querySelectorAll('.bg-preset'));
 const widthRange = $('widthRange'), widthVal = $('widthVal');
 const textOpts = $('textOpts'), textBgOpts = $('textBgOpts'), strokeOpts = $('strokeOpts'), toolGroup = $('toolGroup');
-const hideBtn = $('hideBtn'), undoBtn = $('undoBtn'), clearBtn = $('clearBtn');
+const hideBtn = $('hideBtn'), undoBtn = $('undoBtn'), redoBtn = $('redoBtn'), clearBtn = $('clearBtn');
 const zoomInBtn = $('zoomIn'), zoomOutBtn = $('zoomOut'), zoomFitBtn = $('zoomFit'),
-      zoom100Btn = $('zoom100'), zoomVal = $('zoomVal'), fullscreenBtn = $('fullscreenBtn'),
-      thumbToggleBtn = $('thumbToggleBtn');
+      zoom100Btn = $('zoom100'), zoomInput = $('zoomInput'),
+      fullscreenBtn = $('fullscreenBtn'), thumbToggleBtn = $('thumbToggleBtn');
 const toastEl = $('toast');
 const supBtn = $('supBtn'), subBtn = $('subBtn'), rubyBtn = $('rubyBtn');
 const toolBoxDrop = $('toolBoxDrop'), toolBoxBtn = $('toolBoxBtn');
@@ -518,7 +611,7 @@ const pages = [];
 let activeIdx = -1;
 let pageIdSeq = 1;
 
-let img = null, annotations = [], historyStack = [], zoom = 1;
+let img = null, annotations = [], historyStack = [], redoStack = [], zoom = 1;
 let pendingSnap = null, tool = 'text', hideAll = false, selectedId = null;
 let idSeq = 1, noteSeq = 1;
 let drawing = false, dragState = null, renderScale = 1, editingText = null;
@@ -528,6 +621,8 @@ let currentFontSize = 24;
 let currentFontWeight = 'bold';
 let currentWidth = 14;
 let currentBgColor = null;
+
+let clipboardData = null;
 
 const cardEls = new Map();
 let notesSig = '', pendingFocusNote = null;
@@ -570,36 +665,27 @@ function measureWidth(text, fontCss){
 }
 
 /* =========================================================
-   ★ 富文本解析：粗体(bold 标志位) + 上标 + 下标 + 注音
-   支持任意嵌套：**x^{2}** 会让 x 加粗、2 上标且也加粗
+   富文本解析
    ========================================================= */
 function parseRich(text){
   const out = [];
   let buf = '', i = 0;
   let bold = false;
   const s = String(text == null ? '' : text);
-
   function flushBuf(){
     if (buf){ out.push({ k: 'n', v: buf, bold }); buf = ''; }
   }
-
   while (i < s.length){
     const ch = s[i];
-
-    /* 转义 */
     if (ch === '\\' && i + 1 < s.length && '^_{}#|*'.indexOf(s[i + 1]) >= 0){
       buf += s[i + 1]; i += 2; continue;
     }
-
-    /* ★ 加粗开关 ** */
     if (ch === '*' && s[i + 1] === '*'){
       flushBuf();
       bold = !bold;
       i += 2;
       continue;
     }
-
-    /* 注音 */
     if (ch === '#' && s[i + 1] === '{'){
       const close = s.indexOf('}', i + 2);
       if (close !== -1){
@@ -612,8 +698,6 @@ function parseRich(text){
         }
       }
     }
-
-    /* 上标 */
     if (ch === '^' && s[i + 1] === '{'){
       const close = s.indexOf('}', i + 2);
       if (close !== -1){
@@ -622,8 +706,6 @@ function parseRich(text){
         i = close + 1; continue;
       }
     }
-
-    /* 下标 */
     if (ch === '_' && s[i + 1] === '{'){
       const close = s.indexOf('}', i + 2);
       if (close !== -1){
@@ -632,18 +714,14 @@ function parseRich(text){
         i = close + 1; continue;
       }
     }
-
     buf += ch; i++;
   }
   flushBuf();
   return out;
 }
-
-/* ★ 计算 token 的字体粗细（token 自己的 bold 标志位优先，其次看整段 fw） */
 function tokenWeight(t, fw){
   return (t.bold || fw === 'bold') ? 'bold' : 'normal';
 }
-
 function tokenWidth(c, t, fs, fw){
   const weight = tokenWeight(t, fw);
   if (t.k === 'ruby'){
@@ -664,7 +742,6 @@ function drawRichLine(c, line, x, baseline, fs, fw){
   let cx = x;
   for (const t of toks){
     const weight = tokenWeight(t, fw);
-
     if (t.k === 'ruby'){
       const rubySize = Math.max(6, fs * 0.42);
       c.font = `${weight} ${fs}px ${FONT_FAMILY}`;
@@ -725,6 +802,17 @@ function toCanvasCoords(e){
   const r = canvas.getBoundingClientRect();
   if (!r.width || !r.height) return { x: 0, y: 0 };
   return { x: (e.clientX - r.left) / zoom, y: (e.clientY - r.top) / zoom };
+}
+function getCurrentViewCenter(){
+  if (!img) return { x: 0, y: 0 };
+  const wrapRect = wrap.getBoundingClientRect();
+  const viewRect = viewportEl.getBoundingClientRect();
+  const vx = (viewRect.left + viewRect.width / 2) - wrapRect.left;
+  const vy = (viewRect.top + viewRect.height / 2) - wrapRect.top;
+  return {
+    x: clamp(vx / zoom, 0, img.naturalWidth),
+    y: clamp(vy / zoom, 0, img.naturalHeight)
+  };
 }
 
 /* 图片工具 */
@@ -934,7 +1022,7 @@ function wrapTextCanvas(c, text, maxW){
 function makePage(im){
   return {
     id: pageIdSeq++, img: im, thumb: makeThumb(im),
-    annotations: [], historyStack: [], zoom: 0,
+    annotations: [], historyStack: [], redoStack: [], zoom: 0,
     dirty: true, _blob: null
   };
 }
@@ -955,11 +1043,13 @@ function switchToPage(idx, skipSave){
   if (!skipSave && activeIdx >= 0 && activeIdx < pages.length){
     const cur = pages[activeIdx];
     cur.img = img; cur.annotations = annotations;
-    cur.historyStack = historyStack; cur.zoom = zoom;
+    cur.historyStack = historyStack; cur.redoStack = redoStack; cur.zoom = zoom;
   }
   activeIdx = idx;
   const p = pages[idx];
-  img = p.img; annotations = p.annotations; historyStack = p.historyStack;
+  img = p.img; annotations = p.annotations;
+  historyStack = p.historyStack || [];
+  redoStack = p.redoStack || [];
   zoom = p.zoom || 0;
   selectedId = null; editingText = null; drawing = false;
   dragState = null; pendingSnap = null;
@@ -984,10 +1074,11 @@ function removePage(idx){
     if (!confirm('删除后画布将清空，确定吗？')) return;
     const pid = pages[0].id;
     pages.length = 0; activeIdx = -1;
-    img = null; annotations = []; historyStack = []; zoom = 1;
+    img = null; annotations = []; historyStack = []; redoStack = []; zoom = 1;
     wrap.style.display = 'none';
     emptyEl.style.display = '';
-    notesLeft.innerHTML = ''; notesRight.innerHTML = '';
+    notesLeft.innerHTML = '<div class="notes-empty">点击图片上的「备注」工具<br>在此处添加批注</div>';
+    notesRight.innerHTML = '<div class="notes-empty">点击图片上的「备注」工具<br>在此处添加批注</div>';
     cardEls.clear(); linkLayer.innerHTML = '';
     invalidateBaseCanvas();
     renderPagesBar(); updateUI();
@@ -1026,6 +1117,9 @@ function renderPagesBar(){
 }
 addPageBtn.addEventListener('click', () => fileInput.click());
 
+/* =========================================================
+   缩放
+   ========================================================= */
 function applyZoom(){
   if (!img) return;
   const iw = img.naturalWidth, ih = img.naturalHeight;
@@ -1073,12 +1167,48 @@ function fitToView(){
   viewportEl.scrollLeft = 0;
   viewportEl.scrollTop = 0;
 }
-function updateZoomLabel(){ zoomVal.textContent = Math.round(zoom * 100) + '%'; }
+/* ★ 同步 zoomInput（若用户正在输入则不覆盖） */
+function updateZoomLabel(){
+  if (document.activeElement !== zoomInput){
+    zoomInput.value = Math.round(zoom * 100);
+  }
+}
 function zoomBy(factor){
   const r = viewportEl.getBoundingClientRect();
   setZoom(zoom * factor, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
 }
+/* ★ 应用输入框的百分比数值 */
+function applyZoomInputValue(pct){
+  const maxPct = MAX_ZOOM * 100;
+  const minPct = MIN_ZOOM * 100;
+  pct = clamp(Number(pct) || 100, minPct, maxPct);
+  pct = Math.round(pct);
+  zoomInput.value = pct;
+  if (!img){ return; }
+  const r = viewportEl.getBoundingClientRect();
+  setZoom(pct / 100, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
+}
+zoomInput.addEventListener('change', () => applyZoomInputValue(zoomInput.value));
+zoomInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter'){ e.preventDefault(); applyZoomInputValue(zoomInput.value); zoomInput.blur(); }
+  else if (e.key === 'Escape'){ e.preventDefault(); zoomInput.value = Math.round(zoom * 100); zoomInput.blur(); }
+});
+zoomInput.addEventListener('blur', () => {
+  if (zoomInput.value !== String(Math.round(zoom * 100))){
+    applyZoomInputValue(zoomInput.value);
+  }
+});
+/* ★ 输入框上滚轮微调（按住 Shift 步子更大） */
+zoomInput.addEventListener('wheel', e => {
+  if (!img){ return; }
+  e.preventDefault();
+  const step = e.shiftKey ? 25 : 5;
+  const cur = Number(zoomInput.value) || Math.round(zoom * 100);
+  applyZoomInputValue(cur + (e.deltaY < 0 ? step : -step));
+}, { passive: false });
+zoomInput.addEventListener('focus', () => zoomInput.select());
 
+/* 渲染 */
 let renderQueued = false;
 function scheduleRender(){
   if (renderQueued) return;
@@ -1476,8 +1606,6 @@ function wrapSelection(open, close, tipMsg){
   autoSizeTextInput();
   if (tipMsg) toast(tipMsg);
 }
-
-/* ★ 局部加粗开关：选中文字加/去 ** */
 function toggleBoldSelection(){
   if (!ensureTextEditing()){
     toast('请先用「选择」工具点选一个文字对象，或双击文字进入编辑');
@@ -1490,14 +1618,10 @@ function toggleBoldSelection(){
     s = 0; e = v.length;
   }
   let sel = v.slice(s, e);
-
-  // 如果选中的字符串整体被 ** 包住，就整体去掉
   if (sel.length >= 4 && sel.startsWith('**') && sel.endsWith('**')){
-    // 检查是否为**唯一的一对**：中间的 ** 数量必须为偶数（避免误删嵌套）
     const inner = sel.slice(2, -2);
     const midCount = (inner.match(/\*\*/g) || []).length;
     if (midCount === 0){
-      // 简单的两层闭合
       textInput.value = v.slice(0, s) + inner + v.slice(e);
       const cursor = s + inner.length;
       textInput.focus();
@@ -1507,8 +1631,6 @@ function toggleBoldSelection(){
       return;
     }
   }
-
-  // 否则直接给选中内容包上 **
   const ins = '**' + sel + '**';
   textInput.value = v.slice(0, s) + ins + v.slice(e);
   const cursor = s + ins.length;
@@ -1517,7 +1639,6 @@ function toggleBoldSelection(){
   autoSizeTextInput();
   toast('已加粗（可再点一次取消）');
 }
-
 function addRubyToSelection(){
   if (!ensureTextEditing()){
     toast('请先用「选择」工具点选一个文字对象，或双击文字进入编辑');
@@ -1541,6 +1662,25 @@ function addRubyToSelection(){
   toast('已添加注音');
 }
 
+function focusOnNoteAnchor(n, behavior){
+  if (!img || !n || n.type !== 'note') return;
+  const wrapRect = wrap.getBoundingClientRect();
+  const viewRect = viewportEl.getBoundingClientRect();
+  const curX = wrapRect.left - viewRect.left + n.anchorX * zoom;
+  const curY = wrapRect.top - viewRect.top + n.anchorY * zoom;
+  const dx = curX - viewportEl.clientWidth / 2;
+  const dy = curY - viewportEl.clientHeight / 2;
+  viewportEl.scrollBy({ left: dx, top: dy, behavior: behavior || 'smooth' });
+}
+function flashNoteCard(id){
+  const card = cardEls.get(id);
+  if (!card) return;
+  card.classList.remove('flash');
+  void card.offsetWidth;
+  card.classList.add('flash');
+  setTimeout(() => card.classList.remove('flash'), 1400);
+}
+
 function createNote(cx, cy){
   const side = cx < img.naturalWidth / 2 ? 'left' : 'right';
   pushHistory(deepCopy(annotations));
@@ -1558,9 +1698,19 @@ function renderNotes(force){
   const sig = notes.map(n => `${n.id}:${n.side}:${n.num}:${n.color}`).join('|');
   if (!force && sig === notesSig) return;
   notesSig = sig;
-  notesLeft.innerHTML = '';
-  notesRight.innerHTML = '';
+
+  const leftEmpty = notesLeft.querySelector('.notes-empty');
+  const rightEmpty = notesRight.querySelector('.notes-empty');
+  notesLeft.innerHTML = ''; notesRight.innerHTML = '';
+  if (leftEmpty) notesLeft.appendChild(leftEmpty);
+  if (rightEmpty) notesRight.appendChild(rightEmpty);
   cardEls.clear();
+
+  const hasLeft = notes.some(n => n.side === 'left');
+  const hasRight = notes.some(n => n.side === 'right');
+  if (leftEmpty) leftEmpty.style.display = hasLeft ? 'none' : '';
+  if (rightEmpty) rightEmpty.style.display = hasRight ? 'none' : '';
+
   for (const n of notes){
     const card = document.createElement('div');
     card.className = 'note-card';
@@ -1581,6 +1731,14 @@ function renderNotes(force){
     card.appendChild(ta);
     (n.side === 'left' ? notesLeft : notesRight).appendChild(card);
     cardEls.set(n.id, card);
+
+    card.addEventListener('click', e => {
+      if (e.target.closest('textarea')) return;
+      if (e.target.closest('button')) return;
+      focusOnNoteAnchor(n);
+      flashNoteCard(n.id);
+    });
+
     ta.addEventListener('input', () => {
       n.text = ta.value;
       autoGrow(ta);
@@ -1626,8 +1784,51 @@ function scheduleLinks(){
   linkQueued = true;
   requestAnimationFrame(() => { linkQueued = false; updateLinks(); });
 }
+function layoutNoteColumn(side, panel){
+  if (!img) return;
+  const er = editorEl.getBoundingClientRect();
+  const wr = wrap.getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
+  const panelTopInEditor = panelRect.top - er.top;
+
+  const list = [];
+  for (const n of annotations){
+    if (n.type !== 'note' || n.side !== side) continue;
+    const card = cardEls.get(n.id);
+    if (!card) continue;
+    const ayEditor = wr.top - er.top + n.anchorY * zoom;
+    list.push({ n, card, ayEditor });
+  }
+  list.sort((a, b) => a.ayEditor - b.ayEditor);
+
+  const PAD = 8;
+  let lastBottom = 0;
+  for (const item of list){
+    const { card, ayEditor } = item;
+    if (ayEditor < -20 || ayEditor > er.height + 20){
+      card.style.display = 'none';
+      continue;
+    }
+    card.style.display = '';
+    const cardH = card.offsetHeight || 80;
+    const ayPanel = ayEditor - panelTopInEditor;
+    let top = ayPanel - 20;
+    if (top < lastBottom + PAD) top = lastBottom + PAD;
+    if (top < 4) top = 4;
+    card.style.top = top + 'px';
+    lastBottom = top + cardH;
+  }
+}
 function updateLinks(){
-  if (!img || hideAll){ linkLayer.innerHTML = ''; return; }
+  if (!img){ linkLayer.innerHTML = ''; return; }
+  if (hideAll){
+    for (const card of cardEls.values()) card.style.display = 'none';
+    linkLayer.innerHTML = '';
+    return;
+  }
+  layoutNoteColumn('left', notesLeft);
+  layoutNoteColumn('right', notesRight);
+
   const er = editorEl.getBoundingClientRect();
   const wr = wrap.getBoundingClientRect();
   let svg = '';
@@ -1635,14 +1836,16 @@ function updateLinks(){
     if (n.type !== 'note') continue;
     const card = cardEls.get(n.id);
     if (!card) continue;
+    if (card.style.display === 'none') continue;
     const cr = card.getBoundingClientRect();
     if (cr.width === 0) continue;
+
     const ax = wr.left - er.left + n.anchorX * zoom;
     const ay = wr.top - er.top + n.anchorY * zoom;
     const isLeft = n.side === 'left';
     const cx = (isLeft ? cr.right : cr.left) - er.left;
     const cy = cr.top - er.top + 22;
-    if (ay < -3000 || ay > er.height + 3000) continue;
+
     const midX = (ax + cx) / 2;
     svg += `<path d="M ${cx} ${cy} C ${midX} ${cy}, ${midX} ${ay}, ${ax} ${ay}" fill="none" stroke="${n.color}" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.8"/>`;
     svg += `<circle cx="${ax}" cy="${ay}" r="3.5" fill="${n.color}" opacity="0.9"/>`;
@@ -1666,7 +1869,6 @@ canvas.addEventListener('pointerdown', e => {
           mode: 'resize', handle, id: a.id,
           startB: { x: b.x, y: b.y, w: b.w, h: b.h },
           startFontSize: a.fontSize || 0,
-          startImgW: a.w || 0, startImgH: a.h || 0,
           startPts: a.type === 'pen' ? a.points.map(pt => ({ x: pt.x, y: pt.y })) : null,
           startX: p.x, startY: p.y
         };
@@ -1677,6 +1879,9 @@ canvas.addEventListener('pointerdown', e => {
     const hit = hitTest(p);
     if (hit){
       selectedId = hit.id;
+      if (hit.type === 'note'){
+        flashNoteCard(hit.id);
+      }
       const b = boundsOf(hit);
       dragState = { mode: 'move', id: hit.id, offX: p.x - b.x, offY: p.y - b.y, moved: false };
       try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
@@ -1877,7 +2082,7 @@ function preventBlur(el){
   el.addEventListener('mousedown', e => e.preventDefault());
 }
 [...bgPresets, supBtn, subBtn, rubyBtn, boldBtn, fontMinus, fontPlus,
- bgColorPicker, bgClearBtn, hideBtn, undoBtn, clearBtn, colorPicker,
+ bgColorPicker, bgClearBtn, hideBtn, undoBtn, redoBtn, clearBtn, colorPicker,
  zoomInBtn, zoomOutBtn, zoomFitBtn, zoom100Btn, fullscreenBtn, thumbToggleBtn].forEach(preventBlur);
 
 supBtn.addEventListener('click', e => { e.preventDefault(); wrapSelection('^{', '}', '已应用上标'); });
@@ -1946,6 +2151,7 @@ window.addEventListener('resize', () => {
   });
   if (watermarkPanel.classList.contains('open')) positionWatermarkPanel();
   if (emojiPopover.classList.contains('open')) positionEmojiPopover();
+  scheduleLinks();
 });
 
 function positionEmojiPopover(){
@@ -1956,22 +2162,17 @@ function positionEmojiPopover(){
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const margin = 10;
-
   const anchorRect = moreBtn.getBoundingClientRect();
-
   let left = anchorRect.left + anchorRect.width / 2 - pr.width / 2;
   left = Math.max(margin, Math.min(left, vw - pr.width - margin));
-
   let top = anchorRect.bottom + 8;
   if (top + pr.height > vh - margin){
     top = Math.max(margin, anchorRect.top - pr.height - 8);
   }
   if (top < margin) top = margin;
-
   emojiPopover.style.left = left + 'px';
   emojiPopover.style.top = top + 'px';
 }
-
 function positionWatermarkPanel(){
   watermarkPanel.style.left = '';
   watermarkPanel.style.top = '';
@@ -1980,27 +2181,16 @@ function positionWatermarkPanel(){
   const pr = watermarkPanel.getBoundingClientRect();
   const vw = window.innerWidth;
   const margin = 10;
-
   const anchorRect = moreBtn.getBoundingClientRect();
-
   let left = anchorRect.right - pr.width;
   left = Math.max(margin, Math.min(left, vw - pr.width - margin));
   watermarkPanel.style.left = left + 'px';
   watermarkPanel.style.top = (anchorRect.bottom + 8) + 'px';
 }
 
-shapeBtn.addEventListener('click', e => {
-  e.stopPropagation();
-  toggleDropdown(shapeDrop);
-});
-moreBtn.addEventListener('click', e => {
-  e.stopPropagation();
-  toggleDropdown(moreDrop);
-});
-toolBoxBtn.addEventListener('click', e => {
-  e.stopPropagation();
-  toggleDropdown(toolBoxDrop);
-});
+shapeBtn.addEventListener('click', e => { e.stopPropagation(); toggleDropdown(shapeDrop); });
+moreBtn.addEventListener('click', e => { e.stopPropagation(); toggleDropdown(moreDrop); });
+toolBoxBtn.addEventListener('click', e => { e.stopPropagation(); toggleDropdown(toolBoxDrop); });
 
 moreDrop.querySelector('.dropdown-menu').addEventListener('click', e => {
   const btn = e.target.closest('button[data-more]');
@@ -2008,7 +2198,6 @@ moreDrop.querySelector('.dropdown-menu').addEventListener('click', e => {
   e.stopPropagation();
   const act = btn.dataset.more;
   moreDrop.classList.remove('open');
-
   if (act === 'highlight' || act === 'pen'){
     if (editingText) commitText();
     tool = act;
@@ -2075,10 +2264,14 @@ function addEmoji(em){
   if (!img){ toast('请先上传文件'); return; }
   pushHistory(deepCopy(annotations));
   const size = clamp(Math.round(img.naturalWidth / 12), 48, 260);
+  const center = getCurrentViewCenter();
+  let x = center.x - size / 2;
+  let y = center.y - size / 2;
+  x = clamp(x, 0, img.naturalWidth - size);
+  y = clamp(y, 0, img.naturalHeight - size);
   annotations.push({
     id: idSeq++, type: 'text', text: em,
-    x: img.naturalWidth / 2 - size / 2,
-    y: img.naturalHeight / 2 - size / 2,
+    x, y,
     fontSize: size, fontWeight: 'bold', color: currentColor,
     bgColor: null
   });
@@ -2106,10 +2299,14 @@ imageInsertInput.addEventListener('change', async e => {
     const w = im.naturalWidth * r;
     const h = im.naturalHeight * r;
     pushHistory(deepCopy(annotations));
+    const center = getCurrentViewCenter();
+    let x = center.x - w / 2;
+    let y = center.y - h / 2;
+    x = clamp(x, 0, iw - w);
+    y = clamp(y, 0, ih - h);
     const ann = {
       id: idSeq++, type: 'image',
-      x: (iw - w) / 2, y: (ih - h) / 2,
-      w, h, _src: dataUrl
+      x, y, w, h, _src: dataUrl
     };
     annotations.push(ann);
     selectedId = ann.id;
@@ -2347,19 +2544,14 @@ thumbToggleBtn.addEventListener('click', () => {
 function updatePagesBarVisibility(){
   const isFs = !!document.fullscreenElement;
   let show;
-  if (isFs){
-    show = fullscreenThumbVisible;
-  } else {
-    show = !thumbManuallyHidden;
-  }
+  if (isFs){ show = fullscreenThumbVisible; }
+  else { show = !thumbManuallyHidden; }
   pagesBar.classList.toggle('hidden', !show);
   thumbToggleBtn.classList.toggle('active', show);
 }
 document.addEventListener('fullscreenchange', () => {
   const isFs = !!document.fullscreenElement;
-  if (isFs){
-    fullscreenThumbVisible = false;
-  }
+  if (isFs){ fullscreenThumbVisible = false; }
   updatePagesBarVisibility();
   setTimeout(() => { if (img) fitToView(); scheduleLinks(); }, 60);
 });
@@ -2382,6 +2574,7 @@ hideBtn.addEventListener('click', () => {
   scheduleLinks();
 });
 undoBtn.addEventListener('click', undo);
+redoBtn.addEventListener('click', redo);
 clearBtn.addEventListener('click', () => {
   if (!annotations.length) return;
   if (!confirm('确定清空本页所有标注与备注吗？（可撤销一次）')) return;
@@ -2391,9 +2584,7 @@ clearBtn.addEventListener('click', () => {
   renderNotes(true); render(); scheduleLinks(); updateUI();
 });
 
-/* ★ 工具栏下拉：链接 + 导出 */
 toolBoxDrop.querySelector('.dropdown-menu').addEventListener('click', e => {
-  // 链接
   const linkBtn = e.target.closest('button[data-link]');
   if (linkBtn){
     e.stopPropagation();
@@ -2402,7 +2593,6 @@ toolBoxDrop.querySelector('.dropdown-menu').addEventListener('click', e => {
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
     return;
   }
-  // 导出
   const expBtn = e.target.closest('button[data-export]');
   if (expBtn){
     e.stopPropagation();
@@ -2444,14 +2634,30 @@ projectInput.addEventListener('change', e => {
 function pushHistory(snapshot){
   historyStack.push(snapshot);
   while (historyStack.length > MAX_HISTORY) historyStack.shift();
+  redoStack = [];
   updateUI();
   scheduleAutosave();
 }
 function undo(){
   if (!historyStack.length){ toast('没有可撤销的操作'); return; }
   const restored = historyStack.pop();
+  redoStack.push(deepCopy(annotations));
+  while (redoStack.length > MAX_HISTORY) redoStack.shift();
   annotations.length = 0;
   for (const x of restored) annotations.push(x);
+  selectedId = null;
+  hideTextInput();
+  renderNotes(true); render(); scheduleLinks(); updateUI();
+  syncToolbarFromSelection();
+  scheduleAutosave();
+}
+function redo(){
+  if (!redoStack.length){ toast('没有可重做的操作'); return; }
+  const target = redoStack.pop();
+  historyStack.push(deepCopy(annotations));
+  while (historyStack.length > MAX_HISTORY) historyStack.shift();
+  annotations.length = 0;
+  for (const x of target) annotations.push(x);
   selectedId = null;
   hideTextInput();
   renderNotes(true); render(); scheduleLinks(); updateUI();
@@ -2462,6 +2668,43 @@ function renumberNotes(){
   let n = 1;
   for (const a of annotations) if (a.type === 'note') a.num = n++;
   noteSeq = n;
+}
+
+function copySelected(){
+  if (!selectedId) return false;
+  const a = annotations.find(x => x.id === selectedId);
+  if (!a) return false;
+  clipboardData = deepCopy(a);
+  toast('已复制');
+  return true;
+}
+function pasteClipboard(){
+  if (!clipboardData) return false;
+  pushHistory(deepCopy(annotations));
+  const pasted = deepCopy(clipboardData);
+  pasted.id = idSeq++;
+  const offset = 20;
+  if (pasted.type === 'pen'){
+    pasted.points = pasted.points.map(p => ({ x: p.x + offset, y: p.y + offset }));
+  } else if (pasted.type === 'note'){
+    pasted.anchorX += offset;
+    pasted.anchorY += offset;
+    pasted.num = 0;
+  } else if (pasted.type === 'image'){
+    pasted.x += offset; pasted.y += offset;
+  } else if (pasted.type === 'text'){
+    pasted.x += offset; pasted.y += offset;
+  } else {
+    pasted.x += offset; pasted.y += offset;
+    if (pasted.x2 !== undefined){ pasted.x2 += offset; pasted.y2 += offset; }
+  }
+  annotations.push(pasted);
+  selectedId = pasted.id;
+  renumberNotes();
+  renderNotes(true); render(); updateUI();
+  syncToolbarFromSelection();
+  toast('已粘贴');
+  return true;
 }
 
 function renderPageToCanvas(page){
@@ -2696,6 +2939,7 @@ async function exportProject(){
       const cur = pages[activeIdx];
       cur.annotations = annotations;
       cur.historyStack = historyStack;
+      cur.redoStack = redoStack;
       cur.zoom = zoom;
     }
     const data = {
@@ -2741,8 +2985,9 @@ async function loadProjectData(data){
     throw new Error('不是有效的项目文件');
   }
   pages.length = 0; activeIdx = -1;
-  img = null; annotations = []; historyStack = []; zoom = 1;
-  notesLeft.innerHTML = ''; notesRight.innerHTML = '';
+  img = null; annotations = []; historyStack = []; redoStack = []; zoom = 1;
+  notesLeft.innerHTML = '<div class="notes-empty">点击图片上的「备注」工具<br>在此处添加批注</div>';
+  notesRight.innerHTML = '<div class="notes-empty">点击图片上的「备注」工具<br>在此处添加批注</div>';
   cardEls.clear(); linkLayer.innerHTML = '';
   invalidateBaseCanvas();
   for (let i = 0; i < data.pages.length; i++){
@@ -2763,7 +3008,7 @@ async function loadProjectData(data){
     }
     pages.push({
       id: pageIdSeq++, img: im, thumb: makeThumb(im),
-      annotations: anns, historyStack: [], zoom: pd.zoom || 0,
+      annotations: anns, historyStack: [], redoStack: [], zoom: pd.zoom || 0,
       dirty: true, _blob: null, _exportDataUrl: pd.image
     });
   }
@@ -2873,7 +3118,7 @@ async function runAutoSave(){
     if (activeIdx >= 0 && activeIdx < pages.length){
       const cur = pages[activeIdx];
       cur.img = img; cur.annotations = annotations;
-      cur.historyStack = historyStack; cur.zoom = zoom;
+      cur.historyStack = historyStack; cur.redoStack = redoStack; cur.zoom = zoom;
     }
     if (metaDirty){
       const meta = {
@@ -2911,8 +3156,9 @@ async function tryRestoreAutoSave(){
     if (!ok){ await idbClear().catch(() => {}); return; }
     showLoading('正在恢复…');
     pages.length = 0; activeIdx = -1;
-    img = null; annotations = []; historyStack = []; zoom = 1;
-    notesLeft.innerHTML = ''; notesRight.innerHTML = '';
+    img = null; annotations = []; historyStack = []; redoStack = []; zoom = 1;
+    notesLeft.innerHTML = '<div class="notes-empty">点击图片上的「备注」工具<br>在此处添加批注</div>';
+    notesRight.innerHTML = '<div class="notes-empty">点击图片上的「备注」工具<br>在此处添加批注</div>';
     cardEls.clear(); linkLayer.innerHTML = '';
     invalidateBaseCanvas();
 
@@ -2935,7 +3181,7 @@ async function tryRestoreAutoSave(){
       pages.push({
         id: pid, img: im, thumb: makeThumb(im),
         annotations: anns,
-        historyStack: [], zoom: rec.zoom || 0,
+        historyStack: [], redoStack: [], zoom: rec.zoom || 0,
         dirty: false, _blob: Promise.resolve(rec.image)
       });
       pageIdSeq = Math.max(pageIdSeq, pid + 1);
@@ -2957,7 +3203,16 @@ window.addEventListener('keydown', e => {
   if (path.some(el => el && el.tagName && String(el.tagName).toLowerCase() === 'emoji-picker')) return;
   if (e.target === textInput || editingText) return;
   if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z'){ e.preventDefault(); undo(); return; }
+
+  if (e.ctrlKey || e.metaKey){
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey){ e.preventDefault(); undo(); return; }
+    if (k === 'y'){ e.preventDefault(); redo(); return; }
+    if (k === 'z' && e.shiftKey){ e.preventDefault(); redo(); return; }
+    if (k === 'c'){ e.preventDefault(); copySelected(); return; }
+    if (k === 'v'){ e.preventDefault(); pasteClipboard(); return; }
+  }
+
   if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId){
     e.preventDefault();
     pushHistory(deepCopy(annotations));
@@ -2987,6 +3242,7 @@ function updateCursor(){
 }
 function updateUI(){
   undoBtn.disabled = historyStack.length === 0;
+  redoBtn.disabled = redoStack.length === 0;
   clearBtn.disabled = !img || annotations.length === 0;
 
   toolGroup.querySelectorAll(':scope > button[data-tool]').forEach(b => {
@@ -3043,6 +3299,7 @@ updateUI();
 updateCursor();
 updatePagesBarVisibility();
 fontSizeInput.value = currentFontSize;
+zoomInput.value = Math.round(zoom * 100);
 markBgPresetActive(currentBgColor);
 setTimeout(tryRestoreAutoSave, 400);
 
