@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>视频标注工具 · 时间轴蒙版</title>
+<script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.22.1/index.js"></script>
+<style>
+:root{--bg:#1a1c22;--panel:#242731;--panel2:#2d313d;--border:#383c4a;--text:#e6e8ef;--muted:#8b91a4;--accent:#4c8dff;--warn:#ff9f43;--ok:#2ecc71;--orange:#e67e22;--rec:#e74c3c;--live:#ff2d55;}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{margin:0;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;display:flex;flex-direction:column;user-select:none;}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 0;padding:7px 12px;background:var(--panel);border-bottom:1px solid var(--border);flex:0 0 auto;box-shadow:0 2px 12px rgba(0,0,0,.35);z-index:30;}
+.group{display:flex;align-items:center;gap:5px;padding:0 8px;border-right:1px solid var(--border);}
+.group:last-child{border-right:none;}
+.group>label{font-size:12px;color:var(--muted);white-space:nowrap;}
+button,.btn{background:#343746;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;transition:.15s;font-family:inherit;white-space:nowrap;}
+button:hover:not(:disabled),.btn:hover{background:#414558;}
+button.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+button:disabled{opacity:.35;cursor:not-allowed;}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+button.danger:hover:not(:disabled){background:#7a2b2b;border-color:#a33;}
+button.icon{padding:5px 8px;font-size:14px;line-height:1;min-width:30px;}
+button.tool{padding:6px 9px;min-width:34px;}
+#modeBtn{font-weight:600;min-width:130px;}
+#modeBtn.play{background:linear-gradient(135deg,#2ecc71,#27ae60);border-color:#27ae60;color:#fff;}
+#liveBtn{font-weight:600;min-width:118px;transition:all .2s;}
+#liveBtn.live{background:linear-gradient(135deg,#ff2d55,#c0392b);border-color:#c0392b;color:#fff;animation:liveBtnPulse 2s ease-in-out infinite;}
+#liveBtn.live::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:#fff;margin-right:2px;animation:liveDotBlink 1.2s ease-in-out infinite;}
+@keyframes liveBtnPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,45,85,.55);}50%{box-shadow:0 0 0 8px rgba(255,45,85,0);}}
+@keyframes liveDotBlink{0%,100%{opacity:1;}50%{opacity:.3;}}
+#recBtn{font-weight:600;background:linear-gradient(135deg,#e74c3c,#c0392b);border-color:#c0392b;color:#fff;}
+#recBtn:hover:not(:disabled){background:linear-gradient(135deg,#ff5c4c,#e74c3c);}
+#recBtn.running{background:linear-gradient(135deg,#c0392b,#a93226);animation:liveBtnPulse 1.2s ease-in-out infinite;}
+#exportVidBtn{font-weight:600;background:linear-gradient(135deg,#8e44ad,#6c3483);border-color:#6c3483;color:#fff;}
+input[type=color]{width:32px;height:28px;padding:1px;cursor:pointer;background:#343746;border:1px solid var(--border);border-radius:6px;}
+select{background:#343746;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 6px;font-size:13px;font-family:inherit;cursor:pointer;}
+input[type=number]{background:#343746;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 6px;font-size:13px;font-family:inherit;width:64px;text-align:center;}
+input[type=range]{cursor:pointer;accent-color:var(--accent);}
+input[type=text]{background:#343746;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;font-family:inherit;}
+.dropdown{position:relative;}
+.dropdown-menu{position:absolute;top:calc(100% + 6px);right:0;left:auto;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:5px;min-width:220px;box-shadow:0 10px 30px rgba(0,0,0,.55);display:none;flex-direction:column;gap:2px;z-index:100;max-height:70vh;overflow-y:auto;}
+.dropdown.open .dropdown-menu{display:flex;}
+.dropdown-menu button{border:none;background:transparent;text-align:left;justify-content:flex-start;border-radius:5px;padding:8px 12px;width:100%;font-size:13px;cursor:pointer;}
+.dropdown-menu button:hover{background:#3b4052;}
+.dropdown-menu button.active{background:var(--accent);color:#fff;}
+.rec-indicator{display:none;align-items:center;gap:8px;padding:4px 12px;background:rgba(231,76,60,.18);border:1px solid rgba(231,76,60,.5);border-radius:16px;font-size:12px;font-weight:600;color:#ff9b8f;}
+.rec-indicator.show{display:inline-flex;}
+.rec-dot{width:9px;height:9px;border-radius:50%;background:var(--rec);animation:liveDotBlink 1.2s ease-in-out infinite;}
+.editor{flex:1 1 auto;display:flex;overflow:hidden;min-height:0;}
+.center-wrap{flex:1 1 auto;display:flex;position:relative;overflow:hidden;min-width:0;background:#0f1116;}
+.center-wrap:fullscreen{background:#0f1116;padding:0;}
+.cards-panel{width:170px;flex:0 0 170px;background:var(--panel);position:relative;overflow:visible;transition:width .1s,flex-basis .1s;}
+.cards-panel[data-side="left"]{border-right:1px solid var(--border);}
+.cards-panel[data-side="right"]{border-left:1px solid var(--border);}
+.cards-panel.empty{width:0 !important;flex-basis:0 !important;border:none;}
+.cards-panel .panel-inner{position:absolute;inset:0;overflow:hidden;}
+.cards-panel .panel-label{position:absolute;top:8px;left:0;right:0;text-align:center;font-size:10px;color:#5b6175;letter-spacing:1px;user-select:none;pointer-events:none;}
+.resize-handle{position:absolute;top:0;bottom:0;width:8px;cursor:ew-resize;z-index:20;display:flex;align-items:center;justify-content:center;background:transparent;transition:background .15s;}
+.resize-handle::after{content:'';width:3px;height:40px;background:rgba(76,141,255,.35);border-radius:2px;transition:all .15s;}
+.resize-handle:hover{background:rgba(76,141,255,.15);}
+.resize-handle:hover::after{background:var(--accent);height:70px;}
+.resize-handle.active{background:rgba(76,141,255,.25);}
+.resize-handle.active::after{background:var(--accent);height:100px;}
+.cards-panel[data-side="left"] .resize-handle{right:-4px;}
+.cards-panel[data-side="right"] .resize-handle{left:-4px;}
+.cards-panel.empty .resize-handle{display:none;}
+.side-card{position:absolute;left:6px;right:6px;background:#2b2f3b;border:1px solid #3a3f4e;border-left:3px solid var(--card-color, #4c8dff);border-radius:6px;overflow:hidden;display:none;box-shadow:0 2px 8px rgba(0,0,0,.35);}
+.side-card.visible{display:block;animation:cardIn .2s ease-out;}
+@keyframes cardIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+.side-card.selected{box-shadow:0 0 0 2px rgba(76,141,255,.55),0 2px 8px rgba(0,0,0,.35);}
+.side-card.flash{animation:cardFlash 1.2s ease-out;}
+@keyframes cardFlash{0%{box-shadow:0 0 0 0 rgba(76,141,255,.95);}30%{box-shadow:0 0 0 5px rgba(76,141,255,.6);}100%{box-shadow:0 0 0 0 rgba(76,141,255,0);}}
+.side-card .card-head{display:flex;align-items:center;gap:5px;padding:4px 6px 4px 8px;background:rgba(255,255,255,.03);cursor:pointer;}
+.side-card .card-num{width:16px;height:16px;border-radius:50%;background:var(--card-color, #4c8dff);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.side-card .card-time{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;flex:1 1 auto;padding-left:3px;}
+.side-card .card-btn{border:none;background:transparent;color:#7c8398;padding:1px 5px;font-size:11px;border-radius:3px;cursor:pointer;min-width:auto;}
+.side-card .card-btn:hover{background:#3b4152;color:#fff;}
+.side-card .card-text{display:block;width:100%;border:none;outline:none;resize:none;background:transparent;color:#dfe2ea;font-size:12px;line-height:1.5;padding:6px 8px 8px;font-family:inherit;overflow:hidden;min-height:44px;}
+.side-card .card-text::placeholder{color:#5d6479;}
+.link-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:15;}
+.stage{flex:1 1 auto;position:relative;overflow:auto;background:#000;min-width:0;display:flex;padding:20px;}
+.stage-inner{position:relative;margin:auto;box-shadow:0 10px 40px rgba(0,0,0,.85);flex:0 0 auto;}
+.stage-inner video,.stage-inner iframe{display:block;width:100%;height:100%;border:none;background:#000;}
+.stage-inner video{object-fit:contain;}
+#canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;z-index:5;transition:opacity .15s;}
+#canvas.no-interact{pointer-events:none;opacity:0;}
+.play-indicator{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:rgba(46,204,113,.92);color:#fff;padding:6px 16px;border-radius:16px;font-size:12px;font-weight:600;pointer-events:none;z-index:8;opacity:0;transition:.2s;}
+.play-indicator.show{opacity:1;}
+.live-indicator{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:linear-gradient(135deg,#ff2d55,#c0392b);color:#fff;padding:6px 18px;border-radius:16px;font-size:12px;font-weight:700;pointer-events:none;z-index:8;opacity:0;transition:.2s;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(255,45,85,.5);letter-spacing:.3px;}
+.live-indicator.show{opacity:1;}
+.live-indicator .rec-dot{background:#fff;}
+.manual-time-hint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:rgba(230,126,34,.95);color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;max-width:90%;pointer-events:none;z-index:9;display:none;line-height:1.6;text-align:center;}
+.manual-time-hint.show{display:block;}
+.fullscreen-toast{position:absolute;left:50%;top:16px;transform:translateX(-50%);background:rgba(20,22,28,.85);color:#e6e8ef;padding:8px 18px;border-radius:20px;font-size:12px;z-index:50;pointer-events:none;opacity:0;transition:opacity .3s;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+.fullscreen-toast.show{opacity:1;}
+#textInput{position:absolute;display:none;z-index:10;background:rgba(255,255,255,.95);color:#111;border:2px dashed var(--accent);border-radius:3px;outline:none;resize:none;overflow:hidden;padding:0 3px;margin:0;white-space:pre;line-height:1.25;box-shadow:0 3px 16px rgba(0,0,0,.4);font-family:inherit;caret-color:#000;}
+.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#8891a6;text-align:center;gap:14px;padding:30px;background:radial-gradient(ellipse at center, #20242c 0%, #0f1116 100%);pointer-events:none;}
+.empty b{color:var(--accent);}
+.empty .big{font-size:52px;opacity:.5;}
+.timeline-panel{width:260px;flex:0 0 260px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.timeline-head{padding:10px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;}
+.timeline-head .count{font-size:11px;color:var(--muted);font-weight:400;background:#343746;padding:2px 8px;border-radius:10px;}
+.timeline-list{flex:1 1 auto;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:4px;}
+.timeline-empty{padding:30px 12px;text-align:center;color:#5b6175;font-size:12px;line-height:1.9;}
+.tl-item{display:flex;align-items:stretch;gap:8px;background:#2b2f3b;border:1px solid #3a3f4e;border-radius:6px;padding:7px 9px;cursor:pointer;transition:.15s;position:relative;overflow:hidden;}
+.tl-item:hover{background:#333846;border-color:#4a5063;}
+.tl-item.current{border-color:var(--accent);background:rgba(76,141,255,.12);}
+.tl-item.sel{box-shadow:0 0 0 2px rgba(76,141,255,.55);}
+.tl-item.flash{animation:tlFlash 1.2s ease-out;}
+@keyframes tlFlash{0%{box-shadow:0 0 0 0 rgba(76,141,255,.95);}30%{box-shadow:0 0 0 5px rgba(76,141,255,.6);}100%{box-shadow:0 0 0 0 rgba(76,141,255,0);}}
+.tl-time{flex:0 0 auto;font-variant-numeric:tabular-nums;font-size:12px;color:var(--accent);font-weight:600;background:#1e2229;padding:3px 7px;border-radius:4px;align-self:flex-start;min-width:52px;text-align:center;}
+.tl-time.card{color:#4c8dff;background:rgba(76,141,255,.15);}
+.tl-body{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.tl-title{font-size:12px;color:#dfe2ea;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tl-sub{font-size:10px;color:var(--muted);}
+.tl-actions{display:flex;flex-direction:column;gap:2px;align-self:flex-start;}
+.tl-del{background:transparent;border:none;color:#7c8398;padding:2px 5px;font-size:12px;border-radius:4px;cursor:pointer;min-width:auto;}
+.tl-del:hover{background:#3b4152;color:#fff;}
+.controls{flex:0 0 auto;background:var(--panel);border-top:1px solid var(--border);padding:8px 14px;display:flex;align-items:center;gap:12px;z-index:25;}
+.controls .ctrl-btn{background:transparent;border:1px solid transparent;color:var(--text);font-size:16px;padding:4px 8px;cursor:pointer;border-radius:5px;min-width:auto;}
+.controls .ctrl-btn:hover{background:#343746;border-color:var(--border);}
+.controls .ctrl-btn:disabled{opacity:.3;cursor:not-allowed;}
+.controls #playBtn{font-size:20px;background:#343746;border:1px solid var(--border);width:38px;height:38px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;}
+.controls #playBtn:hover{background:var(--accent);border-color:var(--accent);color:#fff;}
+.controls #playBtn.vclock{background:linear-gradient(135deg,#f39c12,#e67e22);border-color:#e67e22;color:#fff;}
+.controls #playBtn.vclock.running{background:linear-gradient(135deg,#e74c3c,#c0392b);border-color:#c0392b;animation:liveBtnPulse 1.6s ease-in-out infinite;}
+.time-display{font-variant-numeric:tabular-nums;font-size:13px;flex:0 0 auto;min-width:130px;text-align:center;padding:4px 10px;border-radius:6px;transition:.15s;display:flex;align-items:center;justify-content:center;gap:6px;}
+.time-display .time-main{font-weight:600;}
+.time-display .muted{color:var(--muted);font-size:12px;}
+.time-display.editable{cursor:pointer;border:1px dashed rgba(230,126,34,.4);background:rgba(230,126,34,.08);}
+.time-display.editable:hover{background:rgba(230,126,34,.18);border-color:var(--orange);}
+.time-display.editable .edit-icon{font-size:11px;color:var(--orange);margin-left:2px;}
+.time-display.live-mode{border:1px solid rgba(255,45,85,.5);background:rgba(255,45,85,.08);cursor:default;}
+.clock-tag{font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;background:var(--orange);color:#fff;display:none;}
+.clock-tag.show{display:inline-block;}
+.clock-tag.running{background:var(--rec);}
+.clock-tag.live{background:var(--live);}
+.progress-wrap{flex:1 1 auto;position:relative;height:22px;display:flex;align-items:center;}
+.progress-track{position:absolute;left:0;right:0;height:6px;background:#343746;border-radius:3px;pointer-events:none;overflow:hidden;}
+.progress-fill{height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width .05s linear;}
+.progress-wrap.iframe-mode .progress-fill{background:linear-gradient(90deg,#f39c12,#e67e22);}
+.progress-wrap.live-progress .progress-fill{background:linear-gradient(90deg,#ff2d55,#c0392b);}
+.progress-markers{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none;}
+.progress-marker{position:absolute;top:50%;transform:translate(-50%,-50%);width:7px;height:7px;border-radius:50%;background:var(--warn);border:1px solid rgba(0,0,0,.5);pointer-events:auto;cursor:pointer;}
+.progress-marker.card{background:#4c8dff;border-radius:2px;width:6px;height:10px;}
+.progress-marker:hover{transform:translate(-50%,-50%) scale(1.4);background:#fff;}
+.speed-select{background:#343746;color:var(--text);border:1px solid var(--border);border-radius:5px;padding:4px 6px;font-size:12px;}
+.zoom-wrap{display:inline-flex;align-items:center;background:#343746;border:1px solid var(--border);border-radius:6px;overflow:hidden;height:30px;}
+#zoomInput{background:transparent;border:none;outline:none;color:var(--text);font-size:13px;font-family:inherit;width:52px;padding:0 4px;text-align:right;height:100%;-moz-appearance:textfield;appearance:textfield;}
+#zoomInput::-webkit-outer-spin-button,#zoomInput::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+.zoom-wrap .suffix{color:var(--muted);font-size:12px;padding:0 8px 0 2px;user-select:none;}
+.toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%) translateY(16px);background:rgba(18,20,26,.95);color:#fff;border:1px solid #3d4152;padding:9px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:200;max-width:88vw;text-align:center;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.save-status{position:fixed;right:14px;bottom:64px;z-index:150;font-size:11px;color:#8b91a4;background:rgba(20,22,28,.85);padding:4px 10px;border-radius:12px;pointer-events:none;opacity:0;transition:.3s;}
+.save-status.show{opacity:1;}
+.emoji-popover{position:fixed;z-index:150;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:8px;box-shadow:0 15px 50px rgba(0,0,0,.65);display:none;flex-direction:column;gap:6px;max-width:94vw;}
+.emoji-popover.open{display:flex;}
+.emoji-popover-head{display:flex;align-items:center;justify-content:space-between;font-size:13px;padding:2px 6px;}
+.emoji-popover-head button{background:transparent;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:2px 6px;min-width:auto;}
+emoji-picker{width:320px;height:380px;max-width:90vw;max-height:65vh;--background:#2d313d;--border-color:#383c4a;--input-border-color:#383c4a;--input-font-color:#e6e8ef;--input-placeholder-color:#8b91a4;--input-background:#343746;--category-font-color:#8b91a4;--indicator-color:#4c8dff;--button-hover-background:#3b4052;--outline-color:#4c8dff;--emoji-size:1.3rem;--num-columns:8;--border-radius:8px;--category-emoji-size:1.2rem;--input-font-size:14px;--input-padding:6px 10px;--skintone-border-radius:6px;--emoji-padding:.32rem;--scrollbar-color:#4c5266;}
+.export-overlay{position:fixed;inset:0;background:rgba(10,12,18,.88);backdrop-filter:blur(4px);z-index:500;display:none;align-items:center;justify-content:center;}
+.export-overlay.show{display:flex;}
+.export-box{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:26px 32px;min-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.7);display:flex;flex-direction:column;gap:16px;}
+.export-title{font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px;}
+.export-title .spinner{width:18px;height:18px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:var(--accent);animation:spin .9s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.export-progress{height:8px;background:#1b1d24;border-radius:4px;overflow:hidden;}
+.export-bar{height:100%;background:linear-gradient(90deg,#8e44ad,#4c8dff);width:0%;border-radius:4px;transition:width .2s;}
+.export-info{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;}
+.export-actions{display:flex;justify-content:flex-end;gap:8px;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:#14161c;}
+::-webkit-scrollbar-thumb{background:#4a5060;border-radius:5px;border:2px solid #14161c;}
+::-webkit-scrollbar-thumb:hover{background:#6b7285;}
+.help-hint{position:fixed;left:12px;bottom:64px;z-index:150;font-size:11px;color:#8891a6;background:rgba(20,22,28,.85);padding:5px 10px;border-radius:12px;pointer-events:none;opacity:.9;max-width:calc(100vw - 320px);}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="group">
+    <label class="btn" for="videoFileInput">📹 上传视频</label>
+    <input type="file" id="videoFileInput" accept="video/*" hidden>
+    <button id="urlBtn" title="嵌入在线视频（B站/YouTube等）">🔗 在线视频</button>
+    <label class="btn" for="projectInput" title="打开项目文件">📂 打开</label>
+    <input type="file" id="projectInput" accept=".vipaj,.json,application/json" hidden>
+    <button id="saveProjectBtn" disabled title="保存为项目文件">💾 保存</button>
+  </div>
+  <div class="group"><button id="modeBtn" class="primary" title="切换编辑 / 播放模式（按 M）">✏️ 编辑模式</button></div>
+  <div class="group"><button id="liveBtn" title="直播模式：边看边加标注，自动开始录制">🎥 直播模式</button></div>
+  <div class="group" id="toolGroup">
+    <button class="tool" data-tool="select" title="选择 / 移动 / 缩放 (V)"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M5 2l14.6 12.3-6.7.6 3.9 8.6-2.9 1.3-3.9-8.7L5 21.5z"/></svg></button>
+    <button class="tool" data-tool="text" title="插入文字 (T)">T</button>
+    <div class="dropdown" id="shapeDrop">
+      <button class="tool" id="shapeBtn" title="形状工具 ▾">▭ ▾</button>
+      <div class="dropdown-menu">
+        <button data-tool="rect">▭　矩形</button>
+        <button data-tool="ellipse">◯　圆形 / 椭圆</button>
+        <button data-tool="line">╱　直线</button>
+        <button data-tool="wavy">〜　波浪线</button>
+        <button data-tool="arrow">➤　箭头</button>
+      </div>
+    </div>
+    <div class="dropdown" id="moreDrop">
+      <button class="tool" id="moreBtn" title="更多工具 ▾">⋯ ▾</button>
+      <div class="dropdown-menu">
+        <button data-more="card">💬　侧边备注卡片</button>
+        <button data-more="highlight">🖍　涂色高亮</button>
+        <button data-more="pen">✏️　自由画笔</button>
+        <button data-more="image">🖼　插入图片</button>
+        <button data-more="emoji">😊　插入表情</button>
+        <button data-more="watermark">💧　水印（全程显示）</button>
+      </div>
+    </div>
+    <input type="file" id="imageInsertInput" accept="image/*" hidden>
+  </div>
+  <div class="group"><label>颜色</label><input type="color" id="colorPicker" value="#ff3b30"></div>
+  <div class="group" id="textOpts" style="display:none">
+    <label>字号</label>
+    <button class="icon" id="fontMinus">−</button>
+    <input type="number" id="fontSizeInput" min="8" max="200" value="32" step="2">
+    <button class="icon" id="fontPlus">＋</button>
+    <select id="fontWeightSel"><option value="normal">常规</option><option value="bold" selected>加粗</option></select>
+    <button class="icon" id="supBtn" title="上标">x²</button>
+    <button class="icon" id="subBtn" title="下标">x₂</button>
+  </div>
+  <div class="group" id="strokeOpts" style="display:none">
+    <label>粗细</label>
+    <input type="range" id="widthRange" min="2" max="40" value="6" style="width:80px;">
+    <span id="widthVal" style="font-size:12px;color:var(--muted);width:20px;text-align:center;">6</span>
+  </div>
+  <div class="group" id="timeOpts" style="margin-left:auto">
+    <label>时间</label>
+    <input type="text" id="timeInput" value="00:00.0" style="width:86px;text-align:center;font-variant-numeric:tabular-nums;">
+    <button class="icon" id="setTimeFromPlayhead" title="用当前时间">⏱</button>
+    <label>时长</label>
+    <input type="number" id="durationInput" min="0" max="3600" value="3" step="1" style="width:58px;">
+    <button class="icon" id="foreverBtn" title="切换为全程显示">∞</button>
+  </div>
+  <div class="group">
+    <button id="undoBtn" disabled title="撤销 (Ctrl+Z)">↶</button>
+    <button id="redoBtn" disabled title="重做 (Ctrl+Y)">↷</button>
+    <button id="clearBtn" class="danger" disabled title="清空所有标注">🗑</button>
+  </div>
+  <div class="group" style="margin-left:auto">
+    <div class="rec-indicator" id="recIndicator"><span class="rec-dot"></span><span id="recTimer">REC 00:00</span></div>
+    <div class="dropdown" id="exportVidDrop">
+      <button id="exportVidBtn" disabled title="导出合成视频（仅本机视频）">⬇ 导出视频 ▾</button>
+      <div class="dropdown-menu">
+        <button data-export-audio="off">🔇 静音导出（无声音）</button>
+        <button data-export-audio="on">🔊 含原声导出（保留视频声音）</button>
+      </div>
+    </div>
+    <button id="recBtn" disabled title="屏幕录制（Ctrl+F9 开始 / Ctrl+F10 停止，默认带声）">🎬 录制</button>
+  </div>
+</div>
+
+<div class="editor">
+  <div class="center-wrap" id="centerWrap">
+    <div class="cards-panel empty" id="cardsLeft" data-side="left">
+      <div class="panel-inner"><div class="panel-label">左侧卡片</div></div>
+      <div class="resize-handle" data-resize="left"></div>
+    </div>
+    <div class="stage" id="stage">
+      <div class="empty" id="empty">
+        <div class="big">🎬</div>
+        <div>点击上方 <b>上传视频</b> 加载本机文件<br><span style="font-size:13px;opacity:.75">或点击 <b>在线视频</b> 嵌入 B站 / YouTube 链接</span></div>
+        <div style="font-size:12px;opacity:.6;max-width:420px;line-height:1.8">直播时点左上角 <b>🎥 直播模式</b>，边看边加标注并自动录制</div>
+      </div>
+      <div class="stage-inner" id="stageInner" style="display:none;">
+        <video id="videoEl" playsinline></video>
+        <iframe id="iframeEl" style="display:none" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+        <canvas id="canvas"></canvas>
+        <textarea id="textInput" spellcheck="false" wrap="off"></textarea>
+        <div class="play-indicator" id="playIndicator">▶ 播放模式 · 按 M 返回编辑</div>
+        <div class="live-indicator" id="liveIndicator"><span class="rec-dot"></span><span id="liveIndicatorTime">直播中 00:00:00</span></div>
+        <div class="manual-time-hint" id="manualTimeHint"><b>iframe 视频无法自动读取时间</b><br>点底部橙色 ▶ 启动虚拟时钟<br>时间对不上就 <b>点时间显示区</b> 校准</div>
+        <div class="fullscreen-toast" id="fullscreenToast">按 Esc 退出全屏</div>
+      </div>
+    </div>
+    <div class="cards-panel empty" id="cardsRight" data-side="right">
+      <div class="panel-inner"><div class="panel-label">右侧卡片</div></div>
+      <div class="resize-handle" data-resize="right"></div>
+    </div>
+    <svg class="link-svg" id="linkSvg"></svg>
+  </div>
+  <div class="timeline-panel">
+    <div class="timeline-head"><span>🕒 时间轴</span><span class="count" id="timelineCount">0</span></div>
+    <div class="timeline-list" id="timelineList"><div class="timeline-empty">还没有标注。<br><br>选中一个工具，在视频画面上添加内容。</div></div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="ctrl-btn" id="prevMarkBtn" title="上一处">⏮</button>
+  <button class="ctrl-btn" id="prevBtn" title="后退 5 秒">⏪</button>
+  <button class="ctrl-btn" id="playBtn" title="播放 / 暂停">▶</button>
+  <button class="ctrl-btn" id="nextBtn" title="前进 5 秒">⏩</button>
+  <button class="ctrl-btn" id="nextMarkBtn" title="下一处">⏭</button>
+  <div class="time-display" id="timeDisplay">
+    <span class="time-main" id="curTime">00:00.0</span>
+    <span class="muted">/</span>
+    <span class="muted" id="totTime">00:00.0</span>
+    <span class="clock-tag" id="clockTag">虚拟</span>
+    <span class="edit-icon" id="editIcon" style="display:none;">✎</span>
+  </div>
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-markers" id="progressMarkers"></div>
+    <input type="range" id="progress" min="0" max="100" value="0" step="0.01" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;">
+  </div>
+  <select class="speed-select" id="speedSel" title="播放速度（仅本机视频）">
+    <option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option>
+  </select>
+  <button class="ctrl-btn" id="zoomOutBtn" title="缩小">−</button>
+  <div class="zoom-wrap"><input type="number" id="zoomInput" min="10" max="400" value="100" step="10" title="视频画面缩放（10~400%）"><span class="suffix">%</span></div>
+  <button class="ctrl-btn" id="zoomInBtn" title="放大">+</button>
+  <button class="ctrl-btn" id="zoomFitBtn" title="适应窗口" style="font-size:12px;padding:4px 6px;">适应</button>
+  <button class="ctrl-btn" id="fullscreenBtn" title="全屏 (F)（含卡片面板）">⛶</button>
+</div>
+
+<div class="emoji-popover" id="emojiPopover">
+  <div class="emoji-popover-head"><span>😊 插入表情</span><button id="emojiClose" title="关闭">✕</button></div>
+  <emoji-picker id="emojiPicker"></emoji-picker>
+</div>
+
+<div class="export-overlay" id="exportOverlay">
+  <div class="export-box">
+    <div class="export-title"><div class="spinner"></div><span id="exportTitle">正在导出视频，请不要关闭页面…</span></div>
+    <div class="export-progress"><div class="export-bar" id="exportBar"></div></div>
+    <div class="export-info"><span id="exportInfo">准备中…</span><span id="exportEta"></span></div>
+    <div class="export-actions"><button class="danger" id="exportCancel">取消导出</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="save-status" id="saveStatus">已自动保存</div>
+<div class="help-hint" id="helpHint">空格=播放/暂停　←/→=前后5秒　M=编辑/播放　Ctrl+F9=开始录屏　Ctrl+F10=停止　F=全屏</div>
+
+<script>
+(function(){
+'use strict';
+const FONT_FAMILY = '"Microsoft YaHei","PingFang SC","Hiragino Sans GB","Segoe UI","Noto Color Emoji","Apple Color Emoji",sans-serif';
+const MAX_HISTORY = 30, LINE_HEIGHT = 1.25, HIGHLIGHT_ALPHA = 0.4;
+const SHAPE_TOOLS = ['rect','ellipse','line','wavy','arrow'];
+const DEFAULT_DURATION = 3, MIN_FONT = 8, MAX_FONT = 200, MIN_WIDTH = 1, MAX_WIDTH = 60;
+const TICK_INTERVAL = 1/30, IFRAME_MAX_SECONDS = 3600*4;
+const MIN_PANEL_W = 80, MAX_PANEL_W = 420;
+
+const $ = id => document.getElementById(id);
+const canvas = $('canvas'), ctx = canvas.getContext('2d');
+const videoEl = $('videoEl'), iframeEl = $('iframeEl');
+const stage = $('stage'), stageInner = $('stageInner'), emptyEl = $('empty');
+const textInput = $('textInput');
+const playIndicator = $('playIndicator'), liveIndicator = $('liveIndicator'), liveIndicatorTime = $('liveIndicatorTime');
+const manualTimeHint = $('manualTimeHint'), fullscreenToast = $('fullscreenToast');
+const centerWrap = $('centerWrap'), cardsLeft = $('cardsLeft'), cardsRight = $('cardsRight'), linkSvg = $('linkSvg');
+const timelineList = $('timelineList'), timelineCount = $('timelineCount');
+const videoFileInput = $('videoFileInput'), urlBtn = $('urlBtn');
+const projectInput = $('projectInput'), saveProjectBtn = $('saveProjectBtn'), imageInsertInput = $('imageInsertInput');
+const modeBtn = $('modeBtn'), liveBtn = $('liveBtn');
+const toolGroup = $('toolGroup'), shapeDrop = $('shapeDrop'), shapeBtn = $('shapeBtn'), moreDrop = $('moreDrop'), moreBtn = $('moreBtn');
+const exportVidDrop = $('exportVidDrop'), exportVidBtn = $('exportVidBtn');
+const colorPicker = $('colorPicker'), textOpts = $('textOpts'), fontSizeInput = $('fontSizeInput');
+const fontMinus = $('fontMinus'), fontPlus = $('fontPlus'), fontWeightSel = $('fontWeightSel');
+const supBtn = $('supBtn'), subBtn = $('subBtn'), strokeOpts = $('strokeOpts');
+const widthRange = $('widthRange'), widthVal = $('widthVal');
+const timeInput = $('timeInput'), durationInput = $('durationInput');
+const setTimeFromPlayhead = $('setTimeFromPlayhead'), foreverBtn = $('foreverBtn'), timeOpts = $('timeOpts');
+const undoBtn = $('undoBtn'), redoBtn = $('redoBtn'), clearBtn = $('clearBtn');
+const prevBtn = $('prevBtn'), nextBtn = $('nextBtn'), prevMarkBtn = $('prevMarkBtn'), nextMarkBtn = $('nextMarkBtn'), playBtn = $('playBtn');
+const curTimeEl = $('curTime'), totTimeEl = $('totTime'), clockTag = $('clockTag'), editIcon = $('editIcon'), timeDisplay = $('timeDisplay');
+const progressWrap = $('progressWrap'), progress = $('progress'), progressFill = $('progressFill'), progressMarkers = $('progressMarkers');
+const speedSel = $('speedSel'), fullscreenBtn = $('fullscreenBtn');
+const recBtn = $('recBtn'), recIndicator = $('recIndicator'), recTimer = $('recTimer');
+const zoomInBtn = $('zoomInBtn'), zoomOutBtn = $('zoomOutBtn'), zoomFitBtn = $('zoomFitBtn'), zoomInput = $('zoomInput');
+const exportOverlay = $('exportOverlay'), exportBar = $('exportBar'), exportInfo = $('exportInfo'), exportEta = $('exportEta');
+const exportCancel = $('exportCancel'), exportTitle = $('exportTitle');
+const emojiPopover = $('emojiPopover'), emojiClose = $('emojiClose'), emojiPicker = $('emojiPicker');
+const toastEl = $('toast'), saveStatusEl = $('saveStatus');
+
+let videoSource = null, videoLoaded = false, videoNatW = 1280, videoNatH = 720;
+let annotations = [], historyStack = [], redoStack = [], idSeq = 1, cardSeq = 1;
+let selectedId = null, tool = 'select', drawing = false, dragState = null, editingText = null, editMode = true;
+let currentColor = '#ff3b30', currentFontSize = 32, currentFontWeight = 'bold', currentWidth = 6;
+let currentTime = 0, currentDuration = DEFAULT_DURATION;
+let lastTickAt = 0, videoDuration = 0, userZoom = 1;
+const panelWidths = { left: 170, right: 170 };
+const vclock = { running: false, lastTs: 0, rafId: null };
+const imageCache = new Map();
+let clipboardData = null;
+const cardEls = new Map();
+const AUTOSAVE_KEY = 'video-annotation-autosave-v1', AUTOSAVE_DELAY = 2200;
+let autosaveTimer = null, mediaRecorder = null, recordedChunks = [], recStartTs = 0, recTimerHandle = null;
+let audioCtx = null, audioSource = null, audioDest = null, audioGraphCreated = false;
+let exportCancelled = false, exporting = false;
+let liveMode = false, livePendingTime = null, liveStartTime = 0;
+
+const deepCopy = o => JSON.parse(JSON.stringify(o));
+const clamp = (v,a,b) => Math.min(b, Math.max(a,v));
+
+let toastTimer = null;
+function toast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2400); }
+function showSaveStatus(t){ saveStatusEl.textContent = t; saveStatusEl.classList.add('show'); clearTimeout(showSaveStatus._t); showSaveStatus._t = setTimeout(() => saveStatusEl.classList.remove('show'), 1600); }
+function fmtTime(sec){ sec = Math.max(0, sec||0); const m = Math.floor(sec/60), s = Math.floor(sec%60), ds = Math.floor((sec*10)%10); return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${ds}`; }
+function fmtTimeHMS(sec){ sec = Math.max(0, sec||0); const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = Math.floor(sec%60); return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+function parseTimeFlex(str){
+  const s = String(str||'').trim();
+  let m = s.match(/^(\d+):(\d+):(\d+)(?:\.(\d+))?$/);
+  if (m){ return (parseInt(m[1],10)||0)*3600 + (parseInt(m[2],10)||0)*60 + (parseInt(m[3],10)||0); }
+  m = s.match(/^(\d+):(\d+)(?:\.(\d+))?$/);
+  if (m){ const dd = m[3] ? parseInt(m[3].padEnd(2,'0').slice(0,2),10)/10 : 0; return (parseInt(m[1],10)||0)*60 + (parseInt(m[2],10)||0) + dd; }
+  const n = parseFloat(s); return isNaN(n) ? 0 : n;
+}
+function escapeHTML(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function roundRect(c,x,y,w,h,r){ if (c.roundRect){ c.beginPath(); c.roundRect(x,y,w,h,r); } else { c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); } }
+function wrapTextLines(c,text,maxW){
+  const out = [];
+  for (const para of String(text||'').split('\n')){
+    if (!para){ out.push(''); continue; }
+    let cur = '';
+    for (const ch of para){ const test = cur + ch; if (cur && c.measureText(test).width > maxW){ out.push(cur); cur = ch; } else cur = test; }
+    out.push(cur);
+  }
+  return out;
+}
+
+/* ★ 关键改动：正在编辑/选中的对象始终可见 */
+function isVisibleAt(a, t){
+  if (a.type === 'watermark') return true;
+  if (a.time == null) return true;
+  if (selectedId === a.id) return true;
+  if (editingText && editingText.id === a.id) return true;
+  const dur = (a.duration == null) ? Infinity : a.duration;
+  return t >= a.time && t < a.time + dur;
+}
+
+/* 直播模式 */
+function startLiveMode(){
+  if (liveMode) return;
+  if (!videoLoaded){ toast('请先加载视频'); return; }
+  const initStr = prompt(
+    '直播模式\n\n请输入直播已播了多久（可填 0 或直接回车）\n\n  0            → 从 0 开始计时\n  3600         → 从 1 小时开始\n  01:23:45     → 1 小时 23 分 45 秒\n  01:23        → 1 分 23 秒',
+    '0'
+  );
+  if (initStr == null) return;
+  const t = parseTimeFlex(initStr);
+  liveStartTime = t; currentTime = t; liveMode = true; livePendingTime = null;
+  if (!vclock.running){ vclock.running = true; vclock.lastTs = performance.now(); vclock.rafId = requestAnimationFrame(vclockLoop); }
+  updateLiveModeUI(); updateProgressUI(); scheduleRender(); updateUI();
+  if (mediaRecorder && mediaRecorder.state !== 'inactive'){ toast('直播模式已开启（已在录制中）'); }
+  else {
+    toast('直播模式已开启，正在启动录制…（弹窗里点「取消」可跳过）');
+    try { startRecording(); }
+    catch(err){ console.warn('自动录制失败', err); setTimeout(() => toast('如需录制，请按 Ctrl+F9'), 800); }
+  }
+}
+function stopLiveMode(){
+  if (!liveMode) return;
+  liveMode = false; livePendingTime = null;
+  if (vclock.running) vclockStop();
+  updateLiveModeUI();
+  toast('已退出直播模式');
+}
+function toggleLiveMode(){ if (liveMode) stopLiveMode(); else startLiveMode(); }
+function updateLiveModeUI(){
+  if (liveMode){
+    liveBtn.classList.add('live'); liveBtn.textContent = '🔴 直播中';
+    liveIndicator.classList.add('show');
+    timeDisplay.classList.remove('editable'); timeDisplay.classList.add('live-mode');
+    timeDisplay.title = '直播模式：时间由工具持续累积';
+    editIcon.style.display = 'none';
+    progressWrap.classList.add('live-progress');
+    clockTag.classList.add('show','live'); clockTag.classList.remove('running'); clockTag.textContent = '直播';
+    updateLiveIndicator();
+  } else {
+    liveBtn.classList.remove('live'); liveBtn.textContent = '🎥 直播模式';
+    liveIndicator.classList.remove('show');
+    timeDisplay.classList.remove('live-mode'); timeDisplay.title = '';
+    progressWrap.classList.remove('live-progress');
+    if (videoSource === 'iframe'){ timeDisplay.classList.add('editable'); editIcon.style.display = 'inline'; }
+    updateClockTagUI();
+  }
+}
+function updateLiveIndicator(){ if (!liveMode) return; liveIndicatorTime.textContent = '直播中 ' + fmtTimeHMS(currentTime); }
+function recordPendingTime(){ livePendingTime = currentTime; }
+function stampTime(){ if (liveMode && livePendingTime != null) return livePendingTime; return currentTime; }
+
+/* 虚拟时钟 */
+function vclockStart(){ if (videoSource !== 'iframe' && !liveMode) return; if (vclock.running) return; vclock.running = true; vclock.lastTs = performance.now(); vclock.rafId = requestAnimationFrame(vclockLoop); updatePlayBtnUI(); updateClockTagUI(); }
+function vclockStop(){ if (!vclock.running) return; vclock.running = false; if (vclock.rafId) cancelAnimationFrame(vclock.rafId); vclock.rafId = null; updatePlayBtnUI(); updateClockTagUI(); }
+function vclockLoop(now){
+  if (!vclock.running) return;
+  const dt = (now - vclock.lastTs) / 1000;
+  vclock.lastTs = now;
+  currentTime += dt;
+  if (currentTime >= IFRAME_MAX_SECONDS){ currentTime = IFRAME_MAX_SECONDS; vclockStop(); }
+  updateProgressUI(); updateLiveIndicator(); scheduleRender();
+  vclock.rafId = requestAnimationFrame(vclockLoop);
+}
+function updatePlayBtnUI(){
+  if (videoSource === 'local' && !liveMode){ playBtn.textContent = videoEl.paused ? '▶' : '⏸'; playBtn.classList.remove('vclock','running'); }
+  else if (videoSource === 'iframe' || liveMode){ playBtn.classList.add('vclock'); playBtn.classList.toggle('running', vclock.running); playBtn.textContent = vclock.running ? '⏸' : '▶'; }
+  else { playBtn.textContent = '▶'; playBtn.classList.remove('vclock','running'); }
+}
+function updateClockTagUI(){
+  if (liveMode){ clockTag.classList.add('show','live'); clockTag.classList.remove('running'); clockTag.textContent = '直播'; }
+  else if (videoSource === 'iframe'){ clockTag.classList.add('show'); clockTag.classList.toggle('running', vclock.running); clockTag.classList.remove('live'); clockTag.textContent = vclock.running ? '虚拟·运行中' : '虚拟'; }
+  else { clockTag.classList.remove('show','running','live'); }
+}
+
+/* 模式切换 */
+function setEditMode(on){ editMode = !!on; updateModeUI(); }
+function updateModeUI(){
+  if (editMode){
+    canvas.classList.remove('no-interact'); modeBtn.textContent = '✏️ 编辑模式'; modeBtn.classList.remove('play');
+    playIndicator.classList.remove('show');
+    toolGroup.style.opacity = ''; toolGroup.style.pointerEvents = '';
+    textOpts.style.opacity = ''; strokeOpts.style.opacity = '';
+  } else {
+    canvas.classList.add('no-interact'); modeBtn.textContent = '▶️ 播放模式'; modeBtn.classList.add('play');
+    playIndicator.classList.add('show');
+    toolGroup.style.opacity = '0.35'; toolGroup.style.pointerEvents = 'none';
+    textOpts.style.opacity = '0.35'; strokeOpts.style.opacity = '0.35';
+    if (editingText) commitText();
+  }
+  updateCursor();
+}
+modeBtn.addEventListener('click', () => { setEditMode(!editMode); toast(editMode ? '编辑模式' : '播放模式'); });
+
+/* 面板宽度 */
+function applyPanelWidths(){ cardsLeft.style.width = panelWidths.left+'px'; cardsLeft.style.flexBasis = panelWidths.left+'px'; cardsRight.style.width = panelWidths.right+'px'; cardsRight.style.flexBasis = panelWidths.right+'px'; }
+function initPanelResize(){
+  document.querySelectorAll('.resize-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      const side = handle.dataset.resize;
+      const panel = side === 'left' ? cardsLeft : cardsRight;
+      if (panel.classList.contains('empty')) return;
+      const startX = e.clientX, startW = panel.offsetWidth;
+      handle.classList.add('active'); handle.setPointerCapture(e.pointerId);
+      document.body.style.cursor = 'ew-resize';
+      function move(ev){ const dx = ev.clientX - startX; let newW = side === 'left' ? startW + dx : startW - dx; newW = clamp(newW, MIN_PANEL_W, MAX_PANEL_W); panelWidths[side] = newW; applyPanelWidths(); updateStageSize(); layoutCards(); scheduleLinks(); }
+      function up(){ handle.classList.remove('active'); document.body.style.cursor = ''; handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); scheduleAutosave(); }
+      handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
+    });
+  });
+}
+
+/* 视频缩放 */
+function applyUserZoom(z){ z = clamp(Number(z)||100, 10, 400); userZoom = z/100; zoomInput.value = Math.round(z); updateStageSize(); }
+zoomInput.addEventListener('change', () => applyUserZoom(zoomInput.value));
+zoomInput.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); applyUserZoom(zoomInput.value); zoomInput.blur(); } else if (e.key === 'Escape'){ e.preventDefault(); zoomInput.value = Math.round(userZoom*100); zoomInput.blur(); } });
+zoomInput.addEventListener('wheel', e => { if (!videoLoaded) return; e.preventDefault(); const step = e.shiftKey ? 25 : 10; const cur = Number(zoomInput.value)||100; applyUserZoom(cur + (e.deltaY < 0 ? step : -step)); }, { passive: false });
+zoomInBtn.addEventListener('click', () => applyUserZoom(Math.round(userZoom*100) + 10));
+zoomOutBtn.addEventListener('click', () => applyUserZoom(Math.round(userZoom*100) - 10));
+zoomFitBtn.addEventListener('click', () => applyUserZoom(100));
+
+/* 富文本 */
+function parseRich(text){
+  const out = []; let buf = '', i = 0, bold = false;
+  const s = String(text == null ? '' : text);
+  function flush(){ if (buf){ out.push({ k: 'n', v: buf, bold }); buf = ''; } }
+  while (i < s.length){
+    const ch = s[i];
+    if (ch === '\\' && i + 1 < s.length && '^_{}#|*'.indexOf(s[i+1]) >= 0){ buf += s[i+1]; i += 2; continue; }
+    if (ch === '*' && s[i+1] === '*'){ flush(); bold = !bold; i += 2; continue; }
+    if (ch === '^' && s[i+1] === '{'){ const close = s.indexOf('}', i+2); if (close !== -1){ flush(); out.push({ k: 'sup', v: s.slice(i+2, close), bold }); i = close+1; continue; } }
+    if (ch === '_' && s[i+1] === '{'){ const close = s.indexOf('}', i+2); if (close !== -1){ flush(); out.push({ k: 'sub', v: s.slice(i+2, close), bold }); i = close+1; continue; } }
+    buf += ch; i++;
+  }
+  flush(); return out;
+}
+function tokenWeight(t, fw){ return (t.bold || fw === 'bold') ? 'bold' : 'normal'; }
+function drawRichLine(c, line, x, baseline, fs, fw){
+  const toks = parseRich(line); let cx = x;
+  for (const t of toks){
+    const weight = tokenWeight(t, fw);
+    if (t.k === 'n'){ c.font = `${weight} ${fs}px ${FONT_FAMILY}`; c.fillText(t.v, cx, baseline); cx += c.measureText(t.v).width; }
+    else if (t.k === 'sup' || t.k === 'sub'){ const size = fs*0.72; const dy = t.k === 'sup' ? -fs*0.38 : fs*0.16; c.font = `${weight} ${size}px ${FONT_FAMILY}`; c.fillText(t.v, cx, baseline + dy); cx += c.measureText(t.v).width; }
+  }
+}
+function richWidth(c, line, fs, fw){
+  const toks = parseRich(line); let w = 0;
+  for (const t of toks){ const weight = tokenWeight(t, fw); const size = (t.k === 'n') ? fs : fs*0.72; c.font = `${weight} ${size}px ${FONT_FAMILY}`; w += c.measureText(t.v).width; }
+  return w;
+}
+
+/* 卡片 */
+function renderCards(){
+  const cards = annotations.filter(a => a.type === 'card');
+  const bySide = { left: [], right: [] };
+  for (const c of cards) bySide[c.side === 'right' ? 'right' : 'left'].push(c);
+  for (const k of ['left','right']) bySide[k].sort((a,b) => (a.time||0) - (b.time||0));
+  cardsLeft.classList.toggle('empty', bySide.left.length === 0);
+  cardsRight.classList.toggle('empty', bySide.right.length === 0);
+  applyPanelWidths();
+  for (const side of ['left','right']){
+    const panel = side === 'left' ? cardsLeft : cardsRight;
+    const inner = panel.querySelector('.panel-inner');
+    for (const [id, el] of Array.from(cardEls)){ if (el.parentElement === inner){ el.remove(); cardEls.delete(id); } }
+    for (const c of bySide[side]){ const el = createCardEl(c); inner.appendChild(el); cardEls.set(c.id, el); }
+  }
+}
+function createCardEl(c){
+  const el = document.createElement('div');
+  el.className = 'side-card'; el.dataset.id = c.id;
+  el.style.setProperty('--card-color', c.color || '#4c8dff');
+  el.innerHTML = `
+    <div class="card-head">
+      <span class="card-num">${c.num || '·'}</span>
+      <span class="card-time">${fmtTime(c.time||0)}</span>
+      <button class="card-btn" data-act="flip" title="移到另一侧">⇄</button>
+      <button class="card-btn" data-act="del" title="删除">✕</button>
+    </div>
+    <textarea class="card-text" placeholder="在此输入批注…"></textarea>`;
+  const ta = el.querySelector('.card-text');
+  ta.value = c.text || '';
+  autoGrowCard(ta);
+  ta.addEventListener('input', () => { c.text = ta.value; autoGrowCard(ta); scheduleLinks(); scheduleAutosave(); });
+  ta.addEventListener('focus', () => { selectedId = c.id; highlightTimelineItem(c.id); scheduleRender(); });
+  el.querySelector('.card-head').addEventListener('click', e => {
+    if (e.target.closest('button')) return;
+    selectedId = c.id; flashCard(c.id); highlightTimelineItem(c.id);
+    if (c.time != null) setCurrentTime(c.time);
+    syncToolbarFromSelection(); updateUI();
+  });
+  el.querySelectorAll('.card-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const act = btn.dataset.act;
+      if (act === 'del'){
+        pushHistory(deepCopy(annotations));
+        const kept = annotations.filter(x => x.id !== c.id);
+        annotations.length = 0; for (const x of kept) annotations.push(x);
+        if (selectedId === c.id) selectedId = null;
+        renderCards(); renderTimeline(); scheduleLinks(); updateUI(); scheduleAutosave();
+      } else if (act === 'flip'){
+        pushHistory(deepCopy(annotations));
+        c.side = c.side === 'left' ? 'right' : 'left';
+        renderCards(); layoutCards(); scheduleLinks(); scheduleAutosave();
+      }
+    });
+  });
+  return el;
+}
+function autoGrowCard(ta){ ta.style.height = 'auto'; ta.style.height = Math.max(40, ta.scrollHeight) + 'px'; }
+function layoutCards(){
+  if (!videoLoaded) return;
+  const wr = stageInner.getBoundingClientRect();
+  const scaleY = wr.height / videoNatH;
+  for (const side of ['left','right']){
+    const panel = side === 'left' ? cardsLeft : cardsRight;
+    if (panel.classList.contains('empty')) continue;
+    const panelRect = panel.getBoundingClientRect();
+    const cards = annotations.filter(a => a.type === 'card' && (a.side === 'right' ? 'right' : 'left') === side).sort((a,b) => (a.anchorY||0) - (b.anchorY||0));
+    const PAD = 8;
+    let lastBottom = 30;
+    for (const c of cards){
+      const el = cardEls.get(c.id);
+      if (!el) continue;
+      const ayEditor = wr.top - panelRect.top + (c.anchorY||0) * scaleY;
+      if (!isVisibleAt(c, currentTime)){ el.classList.remove('visible'); continue; }
+      el.classList.add('visible');
+      const cardH = el.offsetHeight || 80;
+      let top = ayEditor - 20;
+      if (top < lastBottom + PAD) top = lastBottom + PAD;
+      if (top < 4) top = 4;
+      el.style.top = top + 'px';
+      lastBottom = top + cardH;
+    }
+  }
+}
+let linkQueued = false;
+function scheduleLinks(){ if (linkQueued) return; linkQueued = true; requestAnimationFrame(() => { linkQueued = false; drawLinks(); }); }
+function drawLinks(){
+  if (!videoLoaded){ linkSvg.innerHTML = ''; return; }
+  const cr = centerWrap.getBoundingClientRect();
+  const wr = stageInner.getBoundingClientRect();
+  const scaleX = wr.width / videoNatW, scaleY = wr.height / videoNatH;
+  let svg = '';
+  for (const a of annotations){
+    if (a.type !== 'card') continue;
+    if (!isVisibleAt(a, currentTime)) continue;
+    const el = cardEls.get(a.id);
+    if (!el || !el.classList.contains('visible')) continue;
+    const elRect = el.getBoundingClientRect();
+    const ax = (wr.left - cr.left) + (a.anchorX||videoNatW/2) * scaleX;
+    const ay = (wr.top - cr.top) + (a.anchorY||videoNatH/2) * scaleY;
+    const isLeft = a.side !== 'right';
+    const cardX = isLeft ? (elRect.right - cr.left) : (elRect.left - cr.left);
+    const cardY = elRect.top - cr.top + 20;
+    const color = a.color || '#4c8dff';
+    svg += `<path d="M ${cardX} ${cardY} C ${(cardX+ax)/2} ${cardY}, ${(cardX+ax)/2} ${ay}, ${ax} ${ay}" stroke="${color}" stroke-width="1.5" stroke-dasharray="4 4" fill="none" opacity="0.7"/>`;
+    svg += `<circle cx="${ax}" cy="${ay}" r="4" fill="${color}" stroke="#fff" stroke-width="1"/>`;
+  }
+  linkSvg.innerHTML = svg;
+}
+function flashCard(id){ const el = cardEls.get(id); if (!el) return; el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1200); }
+function createCard(cx, cy){
+  if (!videoLoaded) return;
+  const side = cx < videoNatW/2 ? 'left' : 'right';
+  pushHistory(deepCopy(annotations));
+  const num = cardSeq++;
+  const c = { id: idSeq++, type: 'card', num, side, anchorX: cx, anchorY: cy, text: '', color: currentColor, time: stampTime(), duration: DEFAULT_DURATION };
+  annotations.push(c); selectedId = c.id;
+  renderCards(); layoutCards(); scheduleLinks(); renderTimeline(); updateUI(); scheduleAutosave();
+  toast('已添加卡片（' + fmtTime(c.time) + '）');
+  setTimeout(() => { const el = cardEls.get(c.id); if (el){ el.classList.add('visible'); const ta = el.querySelector('.card-text'); if (ta) ta.focus(); } }, 60);
+}
+
+/* 几何 */
+function boundsOf(a){
+  if (a.type === 'image') return { x: a.x, y: a.y, w: a.w, h: a.h };
+  if (a.type === 'highlight' || a.type === 'rect' || a.type === 'ellipse' || a.type === 'line' || a.type === 'wavy' || a.type === 'arrow'){
+    const x = Math.min(a.x, a.x2), y = Math.min(a.y, a.y2);
+    return { x, y, w: Math.abs(a.x2-a.x), h: Math.abs(a.y2-a.y) };
+  }
+  if (a.type === 'pen'){
+    let mx = Infinity, my = Infinity, Mx = -Infinity, My = -Infinity;
+    for (const p of a.points){ if (p.x<mx)mx=p.x; if (p.y<my)my=p.y; if (p.x>Mx)Mx=p.x; if (p.y>My)My=p.y; }
+    const w = a.width || 6;
+    return { x: mx-w/2, y: my-w/2, w: (Mx-mx)+w, h: (My-my)+w };
+  }
+  if (a.type === 'watermark') return { x: 0, y: 0, w: videoNatW, h: videoNatH };
+  if (a.type === 'card') return null;
+  const lines = (a.text||'').split('\n');
+  let maxW = 0;
+  for (const l of lines) maxW = Math.max(maxW, richWidth(ctx, l, a.fontSize, a.fontWeight));
+  return { x: a.x, y: a.y, w: maxW, h: lines.length * a.fontSize * LINE_HEIGHT };
+}
+function hitTest(p, curTime){
+  for (let i = annotations.length - 1; i >= 0; i--){
+    const a = annotations[i];
+    if (a.type === 'card') continue;
+    if (!isVisibleAt(a, curTime)) continue;
+    if (a.type === 'watermark') continue;
+    const b = boundsOf(a);
+    if (!b) continue;
+    const pad = 6;
+    if (p.x >= b.x-pad && p.x <= b.x+b.w+pad && p.y >= b.y-pad && p.y <= b.y+b.h+pad) return a;
+  }
+  return null;
+}
+function hitHandle(p){
+  if (!selectedId) return null;
+  const a = annotations.find(x => x.id === selectedId);
+  if (!a || a.type === 'watermark' || a.type === 'card') return null;
+  const b = boundsOf(a);
+  if (!b) return null;
+  const pad = 6, hs = 14;
+  const corners = { nw: [b.x-pad,b.y-pad], ne: [b.x+b.w+pad,b.y-pad], sw: [b.x-pad,b.y+b.h+pad], se: [b.x+b.w+pad,b.y+b.h+pad] };
+  for (const k in corners){ const [cx,cy] = corners[k]; if (Math.abs(p.x-cx) <= hs/2 && Math.abs(p.y-cy) <= hs/2) return k; }
+  return null;
+}
+
+/* 舞台 */
+function updateStageSize(){
+  if (!videoLoaded) return;
+  const cw = videoNatW, ch = videoNatH;
+  const availW = Math.max(100, stage.clientWidth-40);
+  const availH = Math.max(60, stage.clientHeight-40);
+  const baseScale = Math.min(availW/cw, availH/ch, 1);
+  const scale = baseScale * userZoom;
+  const dispW = Math.max(100, Math.round(cw*scale));
+  const dispH = Math.max(60, Math.round(ch*scale));
+  stageInner.style.width = dispW + 'px';
+  stageInner.style.height = dispH + 'px';
+  canvas.width = cw; canvas.height = ch;
+  renderAll(); layoutCards(); scheduleLinks();
+}
+function eventToCanvas(e){
+  const r = canvas.getBoundingClientRect();
+  if (!r.width || !r.height) return { x: 0, y: 0 };
+  return { x: (e.clientX-r.left) * (canvas.width/r.width), y: (e.clientY-r.top) * (canvas.height/r.height) };
+}
+
+/* 渲染 */
+let renderQueued = false;
+function scheduleRender(){ if (renderQueued) return; renderQueued = true; requestAnimationFrame(() => { renderQueued = false; renderAll(); }); }
+function renderAll(){ renderCanvas(); updateTimelineHighlight(); layoutCards(); scheduleLinks(); }
+function renderCanvas(){
+  ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (!videoLoaded) return;
+  const t = currentTime;
+  for (const a of annotations){
+    if (a.type === 'card') continue;
+    if (!isVisibleAt(a, t)) continue;
+    drawAnn(ctx, a);
+  }
+  if (selectedId && editMode){
+    const a = annotations.find(x => x.id === selectedId);
+    if (a && a.type !== 'card' && a.type !== 'watermark' && isVisibleAt(a, t)) drawSelection(a);
+  }
+}
+function drawAnn(c, a){
+  if (a.type === 'watermark'){ drawWatermark(c, a); return; }
+  if (a.type === 'image'){ const im = imageCache.get(a._src); if (im && im.complete && im.naturalWidth){ c.save(); c.drawImage(im, a.x, a.y, a.w, a.h); c.restore(); } return; }
+  if (a.type === 'text'){
+    if (!a.text) return;
+    c.save(); c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+    const lh = a.fontSize * LINE_HEIGHT;
+    const lines = a.text.split('\n');
+    const padX = Math.max(2, a.fontSize*0.14), padY = Math.max(1, a.fontSize*0.06);
+    lines.forEach((line, i) => {
+      const base = a.y + i*lh + a.fontSize*0.8;
+      if (a.bgColor){ const w = richWidth(c, line, a.fontSize, a.fontWeight); c.fillStyle = a.bgColor; c.fillRect(a.x-padX, base-a.fontSize*0.9-padY, w+padX*2, a.fontSize*1.15+padY*2); }
+      c.fillStyle = a.color; drawRichLine(c, line, a.x, base, a.fontSize, a.fontWeight);
+    });
+    c.restore(); return;
+  }
+  if (a.type === 'highlight'){
+    const x = Math.min(a.x,a.x2), y = Math.min(a.y,a.y2), w = Math.abs(a.x2-a.x), h = Math.abs(a.y2-a.y);
+    c.save(); c.globalAlpha = HIGHLIGHT_ALPHA; c.fillStyle = a.color; c.fillRect(x,y,w,h); c.restore(); return;
+  }
+  if (a.type === 'pen'){
+    if (!a.points || !a.points.length) return;
+    c.save(); c.strokeStyle = a.color; c.fillStyle = a.color; c.lineWidth = a.width; c.lineCap = 'round'; c.lineJoin = 'round';
+    if (a.points.length === 1){ const p = a.points[0]; c.beginPath(); c.arc(p.x,p.y,a.width/2,0,Math.PI*2); c.fill(); }
+    else { c.beginPath(); c.moveTo(a.points[0].x, a.points[0].y); for (let i = 1; i < a.points.length; i++) c.lineTo(a.points[i].x, a.points[i].y); c.stroke(); }
+    c.restore(); return;
+  }
+  if (a.type === 'wavy'){ drawWavyLine(c, a.x, a.y, a.x2, a.y2, a.width, a.color); return; }
+  if (a.type === 'arrow'){ drawArrow(c, a.x, a.y, a.x2, a.y2, a.width, a.color); return; }
+  if (a.type === 'rect' || a.type === 'ellipse' || a.type === 'line'){
+    const { x: x1, y: y1, x2, y2 } = a;
+    c.save(); c.strokeStyle = a.color; c.lineWidth = a.width; c.lineCap = 'round'; c.lineJoin = 'round';
+    if (a.type === 'rect') c.strokeRect(Math.min(x1,x2), Math.min(y1,y2), Math.abs(x2-x1), Math.abs(y2-y1));
+    else if (a.type === 'ellipse'){ const cx = (x1+x2)/2, cy = (y1+y2)/2; c.beginPath(); c.ellipse(cx, cy, Math.max(Math.abs(x2-x1)/2,1), Math.max(Math.abs(y2-y1)/2,1), 0, 0, Math.PI*2); c.stroke(); }
+    else { c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); c.stroke(); }
+    c.restore();
+  }
+}
+function drawWavyLine(c, x1, y1, x2, y2, w, color){
+  const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx,dy); if (len < 1) return;
+  const ux = dx/len, uy = dy/len, px = -uy, py = ux;
+  const amp = Math.max(3, w*0.9), halfWave = Math.max(6, w*1.6);
+  const steps = Math.max(8, Math.ceil(len/2));
+  c.save(); c.strokeStyle = color; c.lineWidth = Math.max(1, w*0.6); c.lineCap = 'round'; c.lineJoin = 'round';
+  c.beginPath(); c.moveTo(x1,y1);
+  for (let i = 1; i <= steps; i++){ const t = i/steps, dist = t*len; const off = Math.sin((dist/halfWave)*Math.PI)*amp; c.lineTo(x1+ux*dist+px*off, y1+uy*dist+py*off); }
+  c.stroke(); c.restore();
+}
+function drawArrow(c, x1, y1, x2, y2, w, color){
+  const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx,dy); if (len < 1) return;
+  const ux = dx/len, uy = dy/len;
+  const headLen = Math.max(12, w*2.5), headW = Math.max(8, w*1.6);
+  const bx = x2 - ux*headLen, by = y2 - uy*headLen;
+  const px = -uy, py = ux;
+  c.save(); c.strokeStyle = color; c.fillStyle = color; c.lineWidth = w; c.lineCap = 'round'; c.lineJoin = 'round';
+  c.beginPath(); c.moveTo(x1,y1); c.lineTo(bx,by); c.stroke();
+  c.beginPath(); c.moveTo(x2,y2); c.lineTo(bx+px*headW/2, by+py*headW/2); c.lineTo(bx-px*headW/2, by-py*headW/2); c.closePath(); c.fill();
+  c.restore();
+}
+function drawWatermark(c, a){
+  const W = videoNatW, H = videoNatH;
+  const text = a.text || '水印'; if (!text) return;
+  const fs = a.fontSize || 48; const rad = (a.rotate||0)*Math.PI/180; const alpha = a.alpha == null ? 0.18 : a.alpha;
+  c.save(); c.globalAlpha = alpha; c.fillStyle = a.color || '#ffffff'; c.font = `bold ${fs}px ${FONT_FAMILY}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.translate(W/2, H/2); c.rotate(rad);
+  const diag = Math.hypot(W,H); const textW = c.measureText(text).width;
+  const stepX = Math.max(a.gap || 260, textW + fs*0.9); const stepY = Math.max((a.gap || 260)*0.75, fs*2);
+  const cols = Math.ceil(diag/stepX)+1, rows = Math.ceil(diag/stepY)+1;
+  for (let row = -rows; row <= rows; row++){ for (let col = -cols; col <= cols; col++){ c.fillText(text, col*stepX + (row%2 ? stepX/2 : 0), row*stepY); } }
+  c.restore();
+}
+function drawSelection(a){
+  const b = boundsOf(a); if (!b) return;
+  const pad = 6;
+  ctx.save(); ctx.strokeStyle = '#4c8dff'; ctx.lineWidth = Math.max(2, canvas.width/900); ctx.setLineDash([9,6]);
+  ctx.strokeRect(b.x-pad, b.y-pad, b.w+pad*2, b.h+pad*2); ctx.setLineDash([]);
+  const hs = 12;
+  const corners = [[b.x-pad,b.y-pad],[b.x+b.w+pad,b.y-pad],[b.x-pad,b.y+b.h+pad],[b.x+b.w+pad,b.y+b.h+pad]];
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#4c8dff'; ctx.lineWidth = Math.max(2, canvas.width/1200);
+  for (const [cx,cy] of corners){ ctx.beginPath(); ctx.rect(cx-hs/2, cy-hs/2, hs, hs); ctx.fill(); ctx.stroke(); }
+  ctx.restore();
+}
+
+/* 时间轴 */
+function noteTitle(a){
+  switch (a.type){
+    case 'card': return '💬 ' + (a.text.replace(/\n/g,' ').slice(0,30) || '卡片');
+    case 'text': return a.text.replace(/\n/g,' ').slice(0,40) || '（空文字）';
+    case 'image': return '🖼 图片';
+    case 'pen': return '✏️ 画笔';
+    case 'highlight': return '🖍 高亮';
+    case 'rect': return '▭ 矩形';
+    case 'ellipse': return '◯ 圆形';
+    case 'line': return '╱ 直线';
+    case 'wavy': return '〜 波浪线';
+    case 'arrow': return '➤ 箭头';
+    case 'watermark': return '💧 水印：' + (a.text||'').slice(0,20);
+    default: return a.type;
+  }
+}
+function renderTimeline(){
+  const list = annotations.slice().sort((a,b) => (a.time||0) - (b.time||0));
+  timelineCount.textContent = String(annotations.length);
+  if (!list.length){ timelineList.innerHTML = '<div class="timeline-empty">还没有标注。<br><br>选中一个工具，在视频画面上添加内容。</div>'; renderProgressMarkers(); return; }
+  timelineList.innerHTML = '';
+  for (const a of list){
+    const item = document.createElement('div');
+    item.className = 'tl-item'; item.dataset.id = a.id;
+    const isWM = a.type === 'watermark', isCard = a.type === 'card';
+    const t = isWM ? 0 : (a.time || 0);
+    const dur = isWM ? '∞' : (a.duration == null ? '∞' : a.duration + 's');
+    item.innerHTML = `
+      <div class="tl-time ${isCard?'card':''}">${isWM ? '💧' : (isCard ? '💬' : fmtTime(t))}</div>
+      <div class="tl-body">
+        <div class="tl-title">${escapeHTML(noteTitle(a))}</div>
+        <div class="tl-sub">${isCard ? (a.side === 'left' ? '左侧' : '右侧') + ' · ' : ''}时长：${dur}</div>
+      </div>
+      <div class="tl-actions"><button class="tl-del" title="删除" data-act="del">✕</button></div>`;
+    item.addEventListener('click', e => {
+      if (e.target.closest('button')) return;
+      if (!isWM) setCurrentTime(a.time || 0);
+      selectedId = a.id; flashItem(a.id); if (isCard) flashCard(a.id);
+      highlightTimelineItem(a.id); syncToolbarFromSelection(); scheduleRender(); updateUI();
+    });
+    item.querySelector('button[data-act="del"]').addEventListener('click', e => {
+      e.stopPropagation();
+      pushHistory(deepCopy(annotations));
+      const kept = annotations.filter(x => x.id !== a.id);
+      annotations.length = 0; for (const x of kept) annotations.push(x);
+      if (selectedId === a.id) selectedId = null;
+      renderCards(); renderTimeline(); scheduleLinks(); scheduleRender(); updateUI(); scheduleAutosave();
+    });
+    timelineList.appendChild(item);
+  }
+  renderProgressMarkers(); highlightTimelineItem(selectedId);
+}
+function highlightTimelineItem(id){
+  const items = timelineList.querySelectorAll('.tl-item');
+  for (const it of items) it.classList.toggle('sel', Number(it.dataset.id) === id);
+  for (const [cid, el] of cardEls) el.classList.toggle('selected', cid === id);
+}
+function flashItem(id){ const el = timelineList.querySelector(`.tl-item[data-id="${id}"]`); if (!el) return; el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1300); }
+function updateTimelineHighlight(){
+  const items = timelineList.querySelectorAll('.tl-item');
+  for (const it of items){ const id = Number(it.dataset.id); const a = annotations.find(x => x.id === id); if (!a) continue; it.classList.toggle('current', isVisibleAt(a, currentTime)); }
+}
+function renderProgressMarkers(){
+  progressMarkers.innerHTML = '';
+  if (!videoLoaded) return;
+  const maxT = (videoSource === 'local' && !liveMode) ? videoDuration : IFRAME_MAX_SECONDS;
+  if (maxT <= 0) return;
+  for (const a of annotations){
+    if (a.type === 'watermark') continue;
+    if (a.time == null) continue;
+    const pct = clamp((a.time / maxT) * 100, 0, 100);
+    const marker = document.createElement('div');
+    marker.className = 'progress-marker' + (a.type === 'card' ? ' card' : '');
+    marker.style.left = pct + '%';
+    marker.title = fmtTime(a.time) + ' ' + noteTitle(a);
+    marker.addEventListener('click', e => { e.stopPropagation(); setCurrentTime(a.time); });
+    progressMarkers.appendChild(marker);
+  }
+}
+
+/* 时间控制 */
+function setCurrentTime(t){
+  if (videoSource === 'local' && videoLoaded && !liveMode){ t = clamp(t, 0, videoDuration); videoEl.currentTime = t; currentTime = t; updateProgressUI(); scheduleRender(); return; }
+  t = clamp(t, 0, IFRAME_MAX_SECONDS);
+  currentTime = t;
+  if (vclock.running) vclock.lastTs = performance.now();
+  updateProgressUI(); updateLiveIndicator(); scheduleRender();
+}
+function promptManualTime(){
+  const initial = fmtTime(currentTime).replace(/^00:/, '');
+  const str = prompt('请输入当前 iframe 里播放到的时间\n\n83 → 83秒　1:23 → 1分23秒', initial);
+  if (str == null) return;
+  const t = parseTimeFlex(str);
+  setCurrentTime(t); toast('已定位到 ' + fmtTime(t));
+}
+timeDisplay.addEventListener('click', () => { if (liveMode) return; if (videoSource !== 'iframe') return; promptManualTime(); });
+playBtn.addEventListener('click', () => {
+  if (liveMode){
+    // ★ 直播模式下不暂停时钟，只给提示
+    toast('直播模式下时间持续流逝，无法暂停。你可以继续编辑，点击工具时的那一刻会被记录');
+    return;
+  }
+  if (videoSource === 'local' && videoLoaded){ if (videoEl.paused) videoEl.play(); else videoEl.pause(); return; }
+  if (videoSource === 'iframe'){ if (vclock.running){ vclockStop(); toast('虚拟时钟已暂停'); } else { vclockStart(); toast('虚拟时钟已启动'); } }
+});
+prevBtn.addEventListener('click', () => setCurrentTime(currentTime - 5));
+nextBtn.addEventListener('click', () => setCurrentTime(currentTime + 5));
+prevMarkBtn.addEventListener('click', () => {
+  const marks = annotations.filter(a => a.type !== 'watermark' && a.time != null).map(a => a.time).sort((a,b) => a-b);
+  const before = marks.filter(t => t < currentTime - 0.1);
+  if (before.length) setCurrentTime(before[before.length-1]); else if (marks.length) setCurrentTime(marks[0]);
+});
+nextMarkBtn.addEventListener('click', () => {
+  const marks = annotations.filter(a => a.type !== 'watermark' && a.time != null).map(a => a.time).sort((a,b) => a-b);
+  const after = marks.filter(t => t > currentTime + 0.1);
+  if (after.length) setCurrentTime(after[0]); else if (marks.length) setCurrentTime(marks[marks.length-1]);
+});
+progress.addEventListener('input', () => { if (liveMode) return; setCurrentTime(parseFloat(progress.value) || 0); });
+speedSel.addEventListener('change', () => { if (videoSource !== 'local' || !videoLoaded || liveMode) return; videoEl.playbackRate = parseFloat(speedSel.value) || 1; });
+fullscreenBtn.addEventListener('click', () => { if (!document.fullscreenElement){ centerWrap.requestFullscreen().catch(err => toast('全屏失败：' + err.message)); } else { document.exitFullscreen(); } });
+document.addEventListener('fullscreenchange', () => {
+  if (document.fullscreenElement){ fullscreenToast.classList.add('show'); setTimeout(() => fullscreenToast.classList.remove('show'), 2500); }
+  setTimeout(() => { updateStageSize(); layoutCards(); scheduleLinks(); }, 100);
+});
+function updateProgressUI(){
+  curTimeEl.textContent = liveMode ? fmtTimeHMS(currentTime).slice(0,8) : fmtTime(currentTime);
+  if (liveMode){ totTimeEl.textContent = '直播'; }
+  else if (videoSource === 'local'){ totTimeEl.textContent = fmtTime(videoDuration); if (videoDuration > 0){ progressFill.style.width = (currentTime/videoDuration*100) + '%'; progress.value = String(currentTime); } }
+  else if (videoSource === 'iframe'){ totTimeEl.textContent = fmtTime(IFRAME_MAX_SECONDS); progressFill.style.width = (currentTime/IFRAME_MAX_SECONDS*100) + '%'; progress.value = String(currentTime); }
+  else { totTimeEl.textContent = '--:--.-'; }
+}
+
+/* 视频事件 */
+videoEl.addEventListener('loadedmetadata', () => {
+  videoDuration = videoEl.duration || 0;
+  videoNatW = videoEl.videoWidth || 1280; videoNatH = videoEl.videoHeight || 720;
+  videoLoaded = true; progress.max = String(videoDuration);
+  updateProgressUI(); updateStageSize();
+  playBtn.disabled = false; prevBtn.disabled = false; nextBtn.disabled = false; prevMarkBtn.disabled = false; nextMarkBtn.disabled = false;
+  speedSel.disabled = false; fullscreenBtn.disabled = false; recBtn.disabled = false; exportVidBtn.disabled = false;
+  renderTimeline(); scheduleRender(); updateUI();
+});
+videoEl.addEventListener('timeupdate', () => {
+  if (videoSource !== 'local' || liveMode) return;
+  currentTime = videoEl.currentTime; updateProgressUI();
+  const now = performance.now();
+  if (now - lastTickAt > TICK_INTERVAL * 1000){ lastTickAt = now; scheduleRender(); }
+});
+videoEl.addEventListener('play', () => updatePlayBtnUI());
+videoEl.addEventListener('pause', () => updatePlayBtnUI());
+videoEl.addEventListener('ended', () => updatePlayBtnUI());
+
+/* 视频加载 */
+videoFileInput.addEventListener('change', e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return; loadLocalVideo(f); });
+function loadLocalVideo(file){
+  const url = URL.createObjectURL(file);
+  videoSource = 'local'; videoLoaded = false;
+  if (liveMode) stopLiveMode();
+  vclockStop();
+  iframeEl.style.display = 'none'; iframeEl.src = 'about:blank';
+  videoEl.style.display = ''; videoEl.src = url; videoEl.playbackRate = parseFloat(speedSel.value) || 1; videoEl.load();
+  stageInner.style.display = ''; emptyEl.style.display = 'none';
+  progress.disabled = false;
+  manualTimeHint.classList.remove('show'); timeDisplay.classList.remove('editable'); editIcon.style.display = 'none';
+  progressWrap.classList.remove('iframe-mode');
+  updateClockTagUI(); updatePlayBtnUI(); setEditMode(true);
+  toast('本机视频已加载（可导出视频）'); scheduleAutosave();
+}
+urlBtn.addEventListener('click', () => { const url = prompt('请输入在线视频链接（B站 / YouTube 等）：', ''); if (!url) return; loadIframeVideo(url.trim()); });
+function loadIframeVideo(url){
+  videoSource = 'iframe'; videoLoaded = true;
+  if (liveMode) stopLiveMode();
+  try { videoEl.pause(); } catch(_){}
+  videoEl.removeAttribute('src'); videoEl.load();
+  videoEl.style.display = 'none'; iframeEl.style.display = '';
+  const bvMatch = url.match(/BV[a-zA-Z0-9]{10}/);
+  let finalUrl = url;
+  if (bvMatch) finalUrl = `https://player.bilibili.com/player.html?bvid=${bvMatch[0]}&page=1&high_quality=1&danmaku=0&autoplay=0`;
+  else if (/youtu\.be\/([\w-]+)/.test(url) || /youtube\.com\/watch\?v=([\w-]+)/.test(url)){ const m = url.match(/(?:youtu\.be\/|v=)([\w-]+)/); if (m) finalUrl = `https://www.youtube.com/embed/${m[1]}`; }
+  iframeEl.src = finalUrl;
+  videoNatW = 1280; videoNatH = 720;
+  stageInner.style.display = ''; emptyEl.style.display = 'none';
+  vclockStop(); currentTime = 0; videoDuration = 0;
+  playBtn.disabled = false; prevBtn.disabled = false; nextBtn.disabled = false; prevMarkBtn.disabled = false; nextMarkBtn.disabled = false;
+  speedSel.disabled = true; fullscreenBtn.disabled = false; recBtn.disabled = false; exportVidBtn.disabled = true;
+  progress.disabled = false; progress.max = String(IFRAME_MAX_SECONDS);
+  timeDisplay.classList.add('editable'); editIcon.style.display = 'inline';
+  progressWrap.classList.add('iframe-mode');
+  updateProgressUI(); updateStageSize(); renderTimeline(); scheduleRender(); updateUI(); updateClockTagUI(); updatePlayBtnUI();
+  setEditMode(false);
+  manualTimeHint.classList.add('show'); setTimeout(() => manualTimeHint.classList.remove('show'), 10000);
+  toast('已嵌入在线视频。直播请点「🎥 直播模式」');
+}
+
+/* 工具栏 */
+liveBtn.addEventListener('click', toggleLiveMode);
+toolGroup.addEventListener('click', e => {
+  if (e.target.closest('#shapeBtn')) return;
+  if (e.target.closest('#moreBtn')) return;
+  const btn = e.target.closest('button[data-tool]');
+  if (!btn) return;
+  if (!editMode){ toast('请先切换到编辑模式'); return; }
+  const t = btn.dataset.tool;
+  if (t === tool && !SHAPE_TOOLS.includes(t)) return;
+  commitText();
+  if (liveMode) recordPendingTime();
+  tool = t; selectedId = null;
+  shapeDrop.classList.remove('open'); moreDrop.classList.remove('open');
+  updateCursor(); updateUI(); scheduleRender();
+});
+shapeBtn.addEventListener('click', e => { e.stopPropagation(); if (!editMode){ toast('请先切换到编辑模式'); return; } const wasOpen = shapeDrop.classList.contains('open'); moreDrop.classList.remove('open'); exportVidDrop.classList.remove('open'); shapeDrop.classList.toggle('open', !wasOpen); });
+moreBtn.addEventListener('click', e => { e.stopPropagation(); if (!editMode){ toast('请先切换到编辑模式'); return; } const wasOpen = moreDrop.classList.contains('open'); shapeDrop.classList.remove('open'); exportVidDrop.classList.remove('open'); moreDrop.classList.toggle('open', !wasOpen); });
+exportVidBtn.addEventListener('click', e => { e.stopPropagation(); if (exportVidBtn.disabled) return; const wasOpen = exportVidDrop.classList.contains('open'); shapeDrop.classList.remove('open'); moreDrop.classList.remove('open'); exportVidDrop.classList.toggle('open', !wasOpen); });
+shapeDrop.querySelector('.dropdown-menu').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-tool]'); if (!btn) return; e.stopPropagation();
+  commitText(); if (liveMode) recordPendingTime();
+  tool = btn.dataset.tool; selectedId = null;
+  shapeDrop.classList.remove('open'); updateCursor(); updateUI(); scheduleRender();
+});
+moreDrop.querySelector('.dropdown-menu').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-more]'); if (!btn) return; e.stopPropagation();
+  const act = btn.dataset.more; moreDrop.classList.remove('open');
+  if (act === 'highlight' || act === 'pen'){ commitText(); if (liveMode) recordPendingTime(); tool = act; selectedId = null; updateCursor(); updateUI(); scheduleRender(); return; }
+  if (act === 'card'){ if (!videoLoaded){ toast('请先加载视频'); return; } commitText(); if (liveMode) recordPendingTime(); tool = 'card'; selectedId = null; updateCursor(); updateUI(); toast('在视频上点击创建侧边卡片'); return; }
+  if (act === 'image'){ if (!videoLoaded){ toast('请先加载视频'); return; } imageInsertInput.click(); return; }
+  if (act === 'emoji'){
+    if (!videoLoaded){ toast('请先加载视频'); return; }
+    const wasOpen = emojiPopover.classList.contains('open'); emojiPopover.classList.toggle('open', !wasOpen);
+    if (!wasOpen){ const rect = moreBtn.getBoundingClientRect(); const pr = emojiPopover.getBoundingClientRect(); let left = rect.left + rect.width/2 - pr.width/2; left = Math.max(10, Math.min(left, window.innerWidth - pr.width - 10)); let top = rect.bottom + 8; if (top + pr.height > window.innerHeight - 10) top = Math.max(10, rect.top - pr.height - 8); emojiPopover.style.left = left + 'px'; emojiPopover.style.top = top + 'px'; }
+    return;
+  }
+  if (act === 'watermark'){
+    if (!videoLoaded){ toast('请先加载视频'); return; }
+    const wm = annotations.find(a => a.type === 'watermark');
+    const txt = prompt('水印文字：', wm ? wm.text : '仅供学习'); if (txt == null) return;
+    pushHistory(deepCopy(annotations));
+    if (wm){ wm.text = txt; } else { annotations.push({ id: idSeq++, type: 'watermark', text: txt, color: '#ffffff', alpha: 0.18, fontSize: 48, rotate: -25, gap: 260 }); }
+    renderTimeline(); scheduleRender(); updateUI(); scheduleAutosave(); toast('水印已更新');
+    return;
+  }
+});
+emojiClose.addEventListener('click', () => emojiPopover.classList.remove('open'));
+if (emojiPicker){
+  emojiPicker.addEventListener('emoji-click', event => {
+    const char = (event.detail && (event.detail.unicode || (event.detail.emoji && event.detail.emoji.unicode))) || '';
+    if (!char) return; addEmoji(char);
+  });
+}
+function addEmoji(em){
+  if (!videoLoaded){ toast('请先加载视频'); return; }
+  pushHistory(deepCopy(annotations));
+  const size = 64; const cx = videoNatW/2, cy = videoNatH/2;
+  const a = { id: idSeq++, type: 'text', text: em, x: cx-size/2, y: cy-size/2, fontSize: size, fontWeight: 'bold', color: currentColor, bgColor: null, time: stampTime(), duration: DEFAULT_DURATION };
+  annotations.push(a); selectedId = a.id;
+  renderTimeline(); scheduleRender(); updateUI(); scheduleAutosave(); syncToolbarFromSelection();
+  toast('已插入表情');
+}
+imageInsertInput.addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const dataUrl = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(f); });
+    const im = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = dataUrl; });
+    imageCache.set(dataUrl, im);
+    const maxW = videoNatW*0.35, maxH = videoNatH*0.35;
+    const sc = Math.min(maxW/im.naturalWidth, maxH/im.naturalHeight, 1);
+    const w = im.naturalWidth*sc, h = im.naturalHeight*sc;
+    pushHistory(deepCopy(annotations));
+    const a = { id: idSeq++, type: 'image', x: (videoNatW-w)/2, y: (videoNatH-h)/2, w, h, _src: dataUrl, time: stampTime(), duration: DEFAULT_DURATION };
+    annotations.push(a); selectedId = a.id; tool = 'select';
+    updateCursor(); updateUI(); renderTimeline(); scheduleRender(); syncToolbarFromSelection(); scheduleAutosave();
+    toast('图片已插入');
+  } catch (err){ console.error(err); toast('图片插入失败'); }
+});
+
+/* Canvas 交互 */
+canvas.addEventListener('pointerdown', e => {
+  if (!videoLoaded || e.button !== 0) return;
+  const p = eventToCanvas(e);
+  if (tool === 'card'){ e.preventDefault(); createCard(p.x, p.y); return; }
+  if (tool === 'select'){
+    e.preventDefault(); commitText();
+    const h = hitHandle(p);
+    if (h){ const a = annotations.find(x => x.id === selectedId); if (a){ const b = boundsOf(a); dragState = { mode: 'resize', handle: h, id: a.id, startB: { x: b.x, y: b.y, w: b.w, h: b.h }, startFontSize: a.fontSize || 0, startPts: a.type === 'pen' ? a.points.map(pt => ({x:pt.x, y:pt.y})) : null }; try { canvas.setPointerCapture(e.pointerId); } catch(_){} } return; }
+    const hit = hitTest(p, currentTime);
+    if (hit){ selectedId = hit.id; const b = boundsOf(hit); dragState = { mode: 'move', id: hit.id, offX: p.x-b.x, offY: p.y-b.y, moved: false }; try { canvas.setPointerCapture(e.pointerId); } catch(_){} highlightTimelineItem(hit.id); flashItem(hit.id); }
+    else { selectedId = null; }
+    scheduleRender(); syncToolbarFromSelection(); updateUI();
+    return;
+  }
+  if (tool === 'text'){ e.preventDefault(); commitText(); const hit = hitTest(p, currentTime); if (hit && hit.type === 'text') startTextInput(hit.x, hit.y, hit); else startTextInput(p.x, p.y, null); return; }
+  if (tool === 'highlight' || tool === 'pen' || SHAPE_TOOLS.includes(tool)){
+    e.preventDefault(); commitText(); drawing = true;
+    try { canvas.setPointerCapture(e.pointerId); } catch(_){}
+    const stamp = stampTime();
+    let a;
+    if (tool === 'highlight'){ a = { id: idSeq++, type: 'highlight', x: p.x, y: p.y, x2: p.x, y2: p.y, color: currentColor, time: stamp, duration: DEFAULT_DURATION }; }
+    else if (tool === 'pen'){ a = { id: idSeq++, type: 'pen', points: [p], color: currentColor, width: currentWidth, time: stamp, duration: DEFAULT_DURATION }; }
+    else { a = { id: idSeq++, type: tool, x: p.x, y: p.y, x2: p.x, y2: p.y, color: currentColor, width: currentWidth, time: stamp, duration: DEFAULT_DURATION }; }
+    annotations.push(a); scheduleRender();
+  }
+});
+canvas.addEventListener('pointermove', e => {
+  const p = eventToCanvas(e);
+  if (dragState && tool === 'select'){
+    const a = annotations.find(x => x.id === dragState.id); if (!a) return;
+    if (dragState.mode === 'move'){
+      dragState.moved = true;
+      if (a.type === 'text' || a.type === 'image'){ const b = boundsOf(a); a.x += (p.x - dragState.offX) - b.x; a.y += (p.y - dragState.offY) - b.y; }
+      else { const b = boundsOf(a); shiftAnn(a, (p.x - dragState.offX) - b.x, (p.y - dragState.offY) - b.y); }
+    } else if (dragState.mode === 'resize'){
+      dragState.moved = true;
+      const sb = dragState.startB;
+      const refX = dragState.handle === 'nw' || dragState.handle === 'sw' ? sb.x + sb.w : sb.x;
+      const refY = dragState.handle === 'nw' || dragState.handle === 'ne' ? sb.y + sb.h : sb.y;
+      const dx = p.x - refX, dy = p.y - refY;
+      let newW = Math.max(8, Math.abs(dx)), newH = Math.max(8, Math.abs(dy));
+      if (e.shiftKey && sb.w > 0 && sb.h > 0){ const r = sb.w/sb.h; if (newW/newH > r) newH = newW/r; else newW = newH*r; }
+      const newX = dx < 0 ? refX - newW : refX, newY = dy < 0 ? refY - newH : refY;
+      if (a.type === 'text'){ const sx = newW/Math.max(sb.w,1), sy = newH/Math.max(sb.h,1); const s = Math.max(0.1, (sx+sy)/2); a.fontSize = clamp(Math.round(dragState.startFontSize*s), MIN_FONT, MAX_FONT); a.x = newX; a.y = newY; fontSizeInput.value = a.fontSize; }
+      else if (a.type === 'image'){ a.x = newX; a.y = newY; a.w = Math.max(8, newW); a.h = Math.max(8, newH); }
+      else if (a.type === 'rect' || a.type === 'ellipse' || a.type === 'highlight' || a.type === 'line' || a.type === 'wavy' || a.type === 'arrow'){ a.x = newX; a.y = newY; a.x2 = newX + newW; a.y2 = newY + newH; }
+      else if (a.type === 'pen'){ const sx = newW/Math.max(sb.w,1), sy = newH/Math.max(sb.h,1); a.points = dragState.startPts.map(pt => ({ x: newX + (pt.x - sb.x)*sx, y: newY + (pt.y - sb.y)*sy })); }
+    }
+    scheduleRender(); return;
+  }
+  if (!drawing) return;
+  const a = annotations[annotations.length - 1]; if (!a) return;
+  if (a.type === 'highlight'){ a.x2 = p.x; a.y2 = p.y; }
+  else if (a.type === 'pen'){ const last = a.points[a.points.length-1]; if (Math.hypot(p.x-last.x, p.y-last.y) > 1.2) a.points.push(p); }
+  else if (a.type === 'rect' || a.type === 'ellipse' || a.type === 'line' || a.type === 'wavy' || a.type === 'arrow'){
+    let ex = p.x, ey = p.y;
+    if (a.type !== 'rect' && a.type !== 'ellipse'){ if (e.shiftKey){ const dx = ex-a.x, dy = ey-a.y; const snap = Math.round(Math.atan2(dy,dx)/(Math.PI/4))*(Math.PI/4); const len = Math.hypot(dx,dy); ex = a.x + Math.cos(snap)*len; ey = a.y + Math.sin(snap)*len; } }
+    else if (e.shiftKey){ const dx = ex-a.x, dy = ey-a.y; const s = Math.max(Math.abs(dx), Math.abs(dy)); ex = a.x + (dx < 0 ? -s : s); ey = a.y + (dy < 0 ? -s : s); }
+    a.x2 = ex; a.y2 = ey;
+  }
+  scheduleRender();
+});
+function shiftAnn(a, dx, dy){
+  if (a.type === 'pen'){ for (const p of a.points){ p.x += dx; p.y += dy; } }
+  else { a.x += dx; a.y += dy; if (a.x2 !== undefined){ a.x2 += dx; a.y2 += dy; } }
+}
+function endDrawing(){
+  if (dragState){ const moved = dragState.moved; dragState = null; if (moved){ pushHistory(deepCopy(annotations)); renderTimeline(); updateUI(); scheduleAutosave(); } return; }
+  if (!drawing) return;
+  drawing = false;
+  const a = annotations[annotations.length - 1];
+  let valid = false;
+  if (a){
+    if (a.type === 'highlight' || a.type === 'rect' || a.type === 'ellipse' || a.type === 'line' || a.type === 'wavy' || a.type === 'arrow'){ valid = Math.abs(a.x2 - a.x) > 3 || Math.abs(a.y2 - a.y) > 3; }
+    else if (a.type === 'pen'){ valid = a.points.length > 1; }
+  }
+  if (valid){ pushHistory(deepCopy(annotations)); selectedId = a.id; renderTimeline(); highlightTimelineItem(a.id); syncToolbarFromSelection(); scheduleAutosave(); }
+  else if (a) annotations.pop();
+  scheduleRender(); updateUI();
+}
+window.addEventListener('pointerup', endDrawing);
+window.addEventListener('pointercancel', endDrawing);
+canvas.addEventListener('dblclick', e => {
+  if (!videoLoaded || !editMode) return;
+  const p = eventToCanvas(e);
+  const hit = hitTest(p, currentTime);
+  if (hit && hit.type === 'text'){ commitText(); startTextInput(hit.x, hit.y, hit); }
+});
+
+/* 文字输入 */
+function startTextInput(x, y, existing){
+  if (!videoLoaded) return;
+  const fw = existing ? existing.fontWeight : currentFontWeight;
+  const fs = existing ? existing.fontSize : currentFontSize;
+  const co = existing ? existing.color : currentColor;
+  editingText = { id: existing ? existing.id : null, x, y, fontSize: fs, fontWeight: fw, color: co };
+  applyTextInputStyle();
+  textInput.value = existing ? existing.text : '';
+  textInput.style.display = 'block'; autoSizeTextInput();
+  setTimeout(() => { textInput.focus(); const n = textInput.value.length; textInput.setSelectionRange(n, n); }, 0);
+}
+function applyTextInputStyle(){
+  if (!editingText) return;
+  const ed = editingText;
+  const wrapRect = stageInner.getBoundingClientRect();
+  const scaleX = wrapRect.width / videoNatW, scaleY = wrapRect.height / videoNatH;
+  textInput.style.left = (ed.x*scaleX) + 'px';
+  textInput.style.top = (ed.y*scaleY) + 'px';
+  textInput.style.fontSize = (ed.fontSize*scaleX) + 'px';
+  textInput.style.fontWeight = ed.fontWeight;
+  textInput.style.color = ed.color;
+  textInput.style.fontFamily = FONT_FAMILY;
+  textInput.style.lineHeight = LINE_HEIGHT;
+}
+function autoSizeTextInput(){
+  const cs = getComputedStyle(textInput);
+  const fontCss = `${cs.fontWeight} ${cs.fontSize} ${FONT_FAMILY}`;
+  const lines = textInput.value.split('\n');
+  let maxW = 0;
+  const _s = document.createElement('span');
+  _s.style.cssText = 'position:absolute;left:-9999px;top:-9999px;white-space:pre;visibility:hidden;';
+  _s.style.font = fontCss; document.body.appendChild(_s);
+  for (const l of lines){ _s.textContent = l || ' '; maxW = Math.max(maxW, _s.getBoundingClientRect().width); }
+  document.body.removeChild(_s);
+  const fs = parseFloat(cs.fontSize) || 16;
+  textInput.style.width = Math.max(60, maxW + 16) + 'px';
+  textInput.style.height = Math.max(fs*LINE_HEIGHT, lines.length*fs*LINE_HEIGHT) + 8 + 'px';
+}
+function hideTextInput(){ textInput.style.display = 'none'; textInput.value = ''; editingText = null; }
+function commitText(){
+  if (!editingText) return;
+  const ed = editingText; const val = textInput.value; hideTextInput();
+  if (!val.trim()){ scheduleRender(); updateUI(); return; }
+  if (ed.id){
+    const a = annotations.find(x => x.id === ed.id);
+    if (!a){ scheduleRender(); return; }
+    if (a.text === val && a.x === ed.x && a.y === ed.y){ scheduleRender(); return; }
+    pushHistory(deepCopy(annotations));
+    a.text = val; a.x = ed.x; a.y = ed.y;
+  } else {
+    pushHistory(deepCopy(annotations));
+    const a = { id: idSeq++, type: 'text', text: val, x: ed.x, y: ed.y, fontSize: currentFontSize, fontWeight: currentFontWeight, color: currentColor, bgColor: null, time: stampTime(), duration: DEFAULT_DURATION };
+    annotations.push(a); selectedId = a.id;
+  }
+  renderTimeline(); scheduleRender(); updateUI(); syncToolbarFromSelection(); scheduleAutosave();
+}
+textInput.addEventListener('input', autoSizeTextInput);
+textInput.addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); commitText(); }
+  else if (e.key === 'Escape'){ e.preventDefault(); hideTextInput(); scheduleRender(); }
+});
+textInput.addEventListener('blur', () => {
+  setTimeout(() => { if (document.activeElement === textInput) return; if (editingText) commitText(); }, 120);
+});
+
+/* 属性 */
+colorPicker.addEventListener('input', () => { currentColor = colorPicker.value; if (editingText){ editingText.color = currentColor; applyTextInputStyle(); } applyProps('color', currentColor); });
+function applyProps(prop, val){
+  if (!selectedId) return;
+  const a = annotations.find(x => x.id === selectedId); if (!a) return;
+  let changed = false;
+  if (prop === 'color'){ if (a.color !== val){ a.color = val; changed = true; if (a.type === 'card'){ const el = cardEls.get(a.id); if (el) el.style.setProperty('--card-color', val); scheduleLinks(); } } }
+  else if (prop === 'fontSize' && a.type === 'text'){ if (a.fontSize !== val){ a.fontSize = val; changed = true; } }
+  else if (prop === 'fontWeight' && a.type === 'text'){ if (a.fontWeight !== val){ a.fontWeight = val; changed = true; } }
+  else if (prop === 'width'){ if ((a.type === 'pen' || SHAPE_TOOLS.includes(a.type)) && a.width !== val){ a.width = val; changed = true; } }
+  if (changed){ scheduleRender(); scheduleAutosave(); }
+}
+function syncToolbarFromSelection(){
+  if (!selectedId) return;
+  const a = annotations.find(x => x.id === selectedId); if (!a) return;
+  if (a.color){ currentColor = a.color; colorPicker.value = a.color; }
+  if (a.type === 'text'){ currentFontSize = a.fontSize; fontSizeInput.value = a.fontSize; currentFontWeight = a.fontWeight || 'bold'; fontWeightSel.value = currentFontWeight; }
+  if (a.type === 'pen' || SHAPE_TOOLS.includes(a.type)){ if (typeof a.width === 'number'){ currentWidth = a.width; widthRange.value = String(clamp(a.width, MIN_WIDTH, MAX_WIDTH)); widthVal.textContent = String(a.width); } }
+  if (a.type !== 'watermark' && a.time != null){
+    timeInput.value = fmtTime(a.time);
+    if (a.duration == null){ durationInput.value = ''; foreverBtn.classList.add('active'); }
+    else { durationInput.value = String(a.duration); foreverBtn.classList.remove('active'); }
+  }
+}
+fontMinus.addEventListener('click', () => { currentFontSize = clamp(currentFontSize-2, MIN_FONT, MAX_FONT); fontSizeInput.value = currentFontSize; applyProps('fontSize', currentFontSize); if (editingText){ editingText.fontSize = currentFontSize; applyTextInputStyle(); autoSizeTextInput(); } });
+fontPlus.addEventListener('click', () => { currentFontSize = clamp(currentFontSize+2, MIN_FONT, MAX_FONT); fontSizeInput.value = currentFontSize; applyProps('fontSize', currentFontSize); if (editingText){ editingText.fontSize = currentFontSize; applyTextInputStyle(); autoSizeTextInput(); } });
+fontSizeInput.addEventListener('change', () => { const v = clamp(parseInt(fontSizeInput.value,10)||32, MIN_FONT, MAX_FONT); currentFontSize = v; fontSizeInput.value = v; applyProps('fontSize', v); if (editingText){ editingText.fontSize = v; applyTextInputStyle(); autoSizeTextInput(); } });
+fontWeightSel.addEventListener('change', () => { currentFontWeight = fontWeightSel.value; applyProps('fontWeight', currentFontWeight); if (editingText){ editingText.fontWeight = currentFontWeight; applyTextInputStyle(); autoSizeTextInput(); } });
+widthRange.addEventListener('input', () => { currentWidth = parseInt(widthRange.value,10)||6; widthVal.textContent = currentWidth; applyProps('width', currentWidth); });
+supBtn.addEventListener('click', e => { e.preventDefault(); wrapSelection('^{', '}'); });
+subBtn.addEventListener('click', e => { e.preventDefault(); wrapSelection('_{', '}'); });
+function wrapSelection(open, close){
+  if (textInput.style.display !== 'block'){ toast('请先双击文字对象进入编辑'); return; }
+  let s = textInput.selectionStart, e = textInput.selectionEnd;
+  const v = textInput.value;
+  if (s === e){ if (!v) return; s = 0; e = v.length; }
+  const sel = v.slice(s,e); const ins = open + sel + close;
+  textInput.value = v.slice(0,s) + ins + v.slice(e);
+  const cursor = s + ins.length;
+  textInput.focus(); textInput.setSelectionRange(cursor, cursor); autoSizeTextInput();
+}
+setTimeFromPlayhead.addEventListener('click', () => {
+  timeInput.value = fmtTime(currentTime);
+  if (selectedId){
+    const a = annotations.find(x => x.id === selectedId);
+    if (a && a.type !== 'watermark'){ pushHistory(deepCopy(annotations)); a.time = liveMode ? (livePendingTime != null ? livePendingTime : currentTime) : currentTime; renderCards(); renderTimeline(); scheduleRender(); scheduleAutosave(); toast('时间已设为 ' + fmtTime(a.time)); }
+  }
+});
+timeInput.addEventListener('change', () => {
+  const t = parseTimeFlex(timeInput.value); timeInput.value = fmtTime(t);
+  if (selectedId){ const a = annotations.find(x => x.id === selectedId); if (a && a.type !== 'watermark'){ pushHistory(deepCopy(annotations)); a.time = t; renderCards(); renderTimeline(); scheduleRender(); scheduleAutosave(); } }
+});
+durationInput.addEventListener('change', () => {
+  const v = parseInt(durationInput.value,10); const dur = isNaN(v) ? DEFAULT_DURATION : Math.max(0, v);
+  currentDuration = dur; foreverBtn.classList.remove('active');
+  if (selectedId){ const a = annotations.find(x => x.id === selectedId); if (a && a.type !== 'watermark'){ pushHistory(deepCopy(annotations)); a.duration = dur; renderTimeline(); scheduleRender(); scheduleAutosave(); } }
+});
+foreverBtn.addEventListener('click', () => {
+  const isForever = foreverBtn.classList.contains('active');
+  if (selectedId){ const a = annotations.find(x => x.id === selectedId); if (a && a.type !== 'watermark'){ pushHistory(deepCopy(annotations)); a.duration = isForever ? DEFAULT_DURATION : null; foreverBtn.classList.toggle('active', !isForever); durationInput.value = isForever ? DEFAULT_DURATION : ''; renderTimeline(); scheduleRender(); scheduleAutosave(); toast(isForever ? '已恢复有限时长' : '已改为全程显示'); } }
+  else { foreverBtn.classList.toggle('active', !isForever); durationInput.value = isForever ? DEFAULT_DURATION : ''; }
+});
+
+/* 撤销重做 */
+function pushHistory(snap){ historyStack.push(snap); while (historyStack.length > MAX_HISTORY) historyStack.shift(); redoStack = []; updateUI(); scheduleAutosave(); }
+function undo(){
+  if (!historyStack.length){ toast('没有可撤销的操作'); return; }
+  const restored = historyStack.pop(); redoStack.push(deepCopy(annotations));
+  while (redoStack.length > MAX_HISTORY) redoStack.shift();
+  annotations.length = 0; for (const x of restored) annotations.push(x);
+  selectedId = null; hideTextInput(); renderCards(); renderTimeline(); scheduleRender(); updateUI(); scheduleAutosave();
+}
+function redo(){
+  if (!redoStack.length){ toast('没有可重做的操作'); return; }
+  const target = redoStack.pop(); historyStack.push(deepCopy(annotations));
+  while (historyStack.length > MAX_HISTORY) historyStack.shift();
+  annotations.length = 0; for (const x of target) annotations.push(x);
+  selectedId = null; hideTextInput(); renderCards(); renderTimeline(); scheduleRender(); updateUI(); scheduleAutosave();
+}
+undoBtn.addEventListener('click', undo);
+redoBtn.addEventListener('click', redo);
+clearBtn.addEventListener('click', () => { if (!annotations.length) return; if (!confirm('确定清空所有标注吗？')) return; pushHistory(deepCopy(annotations)); annotations.length = 0; selectedId = null; renderCards(); renderTimeline(); scheduleRender(); updateUI(); scheduleAutosave(); });
+function copySelected(){ if (!selectedId) return false; const a = annotations.find(x => x.id === selectedId); if (!a) return false; clipboardData = deepCopy(a); toast('已复制'); return true; }
+function pasteClipboard(){
+  if (!clipboardData) return false;
+  pushHistory(deepCopy(annotations));
+  const p = deepCopy(clipboardData); p.id = idSeq++;
+  const off = 20;
+  if (p.type === 'pen') p.points = p.points.map(pt => ({ x: pt.x + off, y: pt.y + off }));
+  else if (p.type === 'card'){ p.anchorX += off; p.anchorY += off; p.num = cardSeq++; }
+  else if (p.type === 'image' || p.type === 'text'){ p.x += off; p.y += off; }
+  else { p.x += off; p.y += off; if (p.x2 !== undefined){ p.x2 += off; p.y2 += off; } }
+  p.time = stampTime(); annotations.push(p); selectedId = p.id;
+  renderCards(); renderTimeline(); scheduleRender(); updateUI(); scheduleAutosave(); toast('已粘贴'); return true;
+}
+
+/* 自动保存 */
+function scheduleAutosave(){ clearTimeout(autosaveTimer); autosaveTimer = setTimeout(runAutoSave, AUTOSAVE_DELAY); }
+function runAutoSave(){
+  try { const data = { annotations, videoSource, videoNatW, videoNatH, savedAt: Date.now(), idSeq, cardSeq, panelWidths: { ...panelWidths }, userZoom }; localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data)); showSaveStatus('已自动保存'); }
+  catch(err){ console.warn('自动保存失败', err); }
+}
+function tryRestoreAutoSave(){
+  try {
+    const raw = localStorage.getItem(AUTOSAVE_KEY); if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.annotations) || !data.annotations.length) return;
+    const timeStr = new Date(data.savedAt).toLocaleString();
+    if (!confirm(`发现上次未完成的标注（${timeStr}，共 ${data.annotations.length} 条）。恢复？`)){ localStorage.removeItem(AUTOSAVE_KEY); return; }
+    annotations = data.annotations;
+    idSeq = data.idSeq || (annotations.reduce((m,a) => Math.max(m, a.id||0), 0) + 1);
+    cardSeq = data.cardSeq || (annotations.reduce((m,a) => Math.max(m, a.num||0), 0) + 1);
+    if (data.videoNatW) videoNatW = data.videoNatW;
+    if (data.videoNatH) videoNatH = data.videoNatH;
+    if (data.panelWidths){ panelWidths.left = clamp(data.panelWidths.left||170, MIN_PANEL_W, MAX_PANEL_W); panelWidths.right = clamp(data.panelWidths.right||170, MIN_PANEL_W, MAX_PANEL_W); }
+    if (typeof data.userZoom === 'number'){ userZoom = clamp(data.userZoom, 0.1, 4); zoomInput.value = Math.round(userZoom*100); }
+    for (const a of annotations){ if (a.type === 'image' && a._src && !imageCache.has(a._src)){ const im = new Image(); im.onload = () => { imageCache.set(a._src, im); scheduleRender(); }; im.src = a._src; } }
+    applyPanelWidths(); renderCards(); renderTimeline(); scheduleRender(); updateUI(); toast('已恢复上次标注，请重新加载视频');
+  } catch(err){ console.warn('恢复失败', err); }
+}
+
+/* 项目保存 */
+saveProjectBtn.addEventListener('click', () => {
+  const cards = annotations.filter(a => a.type === 'card').length;
+  const images = annotations.filter(a => a.type === 'image').length;
+  const texts = annotations.filter(a => a.type === 'text').length;
+  const shapes = annotations.filter(a => SHAPE_TOOLS.includes(a.type)).length;
+  const pens = annotations.filter(a => a.type === 'pen' || a.type === 'highlight').length;
+  const wms = annotations.filter(a => a.type === 'watermark').length;
+  const data = { format: 'video-annotation-project', version: 2, createdAt: new Date().toISOString(), idSeq, cardSeq, annotations, videoNatW, videoNatH, panelWidths: { ...panelWidths }, userZoom };
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); const t = new Date(); const p = n => String(n).padStart(2,'0');
+  a.download = `视频标注_${t.getFullYear()}${p(t.getMonth()+1)}${p(t.getDate())}_${p(t.getHours())}${p(t.getMinutes())}${p(t.getSeconds())}.vipaj`;
+  a.href = url; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+  toast(`已保存：${cards}卡片 ${images}图片 ${texts}文字 ${shapes}形状 ${pens}笔迹 ${wms}水印`);
+});
+projectInput.addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const text = await f.text(); const data = JSON.parse(text);
+    if (!data || data.format !== 'video-annotation-project' || !Array.isArray(data.annotations)){ throw new Error('不是有效的项目文件'); }
+    annotations = data.annotations;
+    idSeq = data.idSeq || (annotations.reduce((m,a) => Math.max(m, a.id||0), 0) + 1);
+    cardSeq = data.cardSeq || (annotations.reduce((m,a) => Math.max(m, a.num||0), 0) + 1);
+    if (data.videoNatW) videoNatW = data.videoNatW; if (data.videoNatH) videoNatH = data.videoNatH;
+    if (data.panelWidths){ panelWidths.left = clamp(data.panelWidths.left||170, MIN_PANEL_W, MAX_PANEL_W); panelWidths.right = clamp(data.panelWidths.right||170, MIN_PANEL_W, MAX_PANEL_W); }
+    if (typeof data.userZoom === 'number'){ userZoom = clamp(data.userZoom, 0.1, 4); zoomInput.value = Math.round(userZoom*100); }
+    for (const a of annotations){ if (a.type === 'image' && a._src && !imageCache.has(a._src)){ const im = new Image(); im.onload = () => { imageCache.set(a._src, im); scheduleRender(); }; im.src = a._src; } }
+    applyPanelWidths(); renderCards(); renderTimeline(); scheduleRender(); updateUI();
+    const cards = annotations.filter(a => a.type === 'card').length;
+    const images = annotations.filter(a => a.type === 'image').length;
+    const texts = annotations.filter(a => a.type === 'text').length;
+    const shapes = annotations.filter(a => SHAPE_TOOLS.includes(a.type)).length;
+    const pens = annotations.filter(a => a.type === 'pen' || a.type === 'highlight').length;
+    toast(`已加载：${cards}卡片 ${images}图片 ${texts}文字 ${shapes}形状 ${pens}笔迹`);
+  } catch(err){ console.error(err); toast('打开失败：' + err.message); }
+});
+
+/* 导出视频 */
+exportVidDrop.querySelector('.dropdown-menu').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-export-audio]'); if (!btn) return;
+  e.stopPropagation(); exportVidDrop.classList.remove('open');
+  startExportVideo(btn.dataset.exportAudio === 'on');
+});
+async function startExportVideo(withAudio){
+  if (exporting) return;
+  if (!videoLoaded){ toast('请先加载视频'); return; }
+  if (videoSource !== 'local'){ toast('在线视频请用 Ctrl+F9 录屏'); return; }
+  if (!videoDuration){ toast('视频未加载完成'); return; }
+  const hasCards = annotations.some(a => a.type === 'card');
+  const cardW = hasCards ? 220 : 0;
+  const W = videoNatW + cardW*2, H = videoNatH;
+  const audioText = withAudio ? '含原声' : '静音';
+  if (!confirm(`导出视频：\n\n尺寸：${W} × ${H}\n时长：${fmtTime(videoDuration)}\n音频：${audioText}\n\n继续？`)) return;
+  exporting = true; exportCancelled = false;
+  exportOverlay.classList.add('show'); exportBar.style.width = '0%';
+  exportTitle.textContent = `正在导出（${audioText}）…`;
+  exportInfo.textContent = '准备中…'; exportEta.textContent = '';
+  const savedTime = videoEl.currentTime, savedRate = videoEl.playbackRate, wasPlaying = !videoEl.paused, savedMuted = videoEl.muted;
+  videoEl.pause(); videoEl.playbackRate = 1; videoEl.currentTime = 0;
+  let audioTrack = null;
+  if (withAudio){ const dest = ensureAudioGraph(); if (dest){ await resumeAudioCtx(); const tracks = dest.stream.getAudioTracks(); if (tracks && tracks.length) audioTrack = tracks[0]; } videoEl.muted = false; } else { videoEl.muted = true; }
+  await new Promise(r => { const onSeek = () => { videoEl.removeEventListener('seeked', onSeek); r(); }; videoEl.addEventListener('seeked', onSeek); setTimeout(r, 900); });
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = W; outCanvas.height = H;
+  const octx = outCanvas.getContext('2d');
+  drawExportFrame(octx, W, H, cardW, 0);
+  let stream;
+  try { stream = outCanvas.captureStream(30); } catch(err){ cleanup(); toast('浏览器不支持 captureStream'); return; }
+  if (audioTrack){ try { stream.addTrack(audioTrack); } catch(err){ console.warn('添加音频失败', err); } }
+  const mimeCandidates = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp9','video/webm;codecs=vp8,opus','video/webm;codecs=vp8','video/webm','video/mp4'];
+  let mimeType = ''; for (const m of mimeCandidates){ if (MediaRecorder.isTypeSupported(m)){ mimeType = m; break; } }
+  if (!mimeType){ cleanup(); toast('浏览器不支持 MediaRecorder'); return; }
+  const chunks = []; let recorder;
+  try { recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 5_000_000 }); } catch(err){ cleanup(); toast('MediaRecorder 启动失败：' + err.message); return; }
+  recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+  const donePromise = new Promise(resolve => { recorder.onstop = resolve; });
+  recorder.start(500);
+  let rafId = null, stopped = false; const startWall = performance.now();
+  function frame(){
+    if (stopped) return;
+    const t = videoEl.currentTime;
+    drawExportFrame(octx, W, H, cardW, t);
+    const pct = videoDuration ? Math.min(1, t/videoDuration) : 0;
+    exportBar.style.width = (pct*100).toFixed(1) + '%';
+    exportInfo.textContent = `${fmtTime(t)} / ${fmtTime(videoDuration)}`;
+    const elapsed = (performance.now() - startWall)/1000;
+    if (pct > 0.02){ const totalEst = elapsed/pct; const remain = Math.max(0, totalEst - elapsed); exportEta.textContent = '剩余约 ' + Math.ceil(remain) + ' 秒'; }
+    if (exportCancelled){ stopped = true; try { recorder.stop(); } catch(_){} return; }
+    if (videoEl.ended || t >= videoDuration - 0.02){ stopped = true; setTimeout(() => { try { recorder.stop(); } catch(_){} }, 400); return; }
+    rafId = requestAnimationFrame(frame);
+  }
+  videoEl.play().catch(()=>{});
+  rafId = requestAnimationFrame(frame);
+  await donePromise;
+  cancelAnimationFrame(rafId);
+  try { stream.getTracks().forEach(t => t.stop()); } catch(_){}
+  if (exportCancelled){ cleanup(); toast('导出已取消'); return; }
+  const blob = new Blob(chunks, { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); const t = new Date(); const p = n => String(n).padStart(2,'0');
+  const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+  const audioTag = withAudio ? '含声' : '静音';
+  a.download = `视频导出_${audioTag}_${t.getFullYear()}${p(t.getMonth()+1)}${p(t.getDate())}_${p(t.getHours())}${p(t.getMinutes())}${p(t.getSeconds())}.${ext}`;
+  a.href = url; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  cleanup();
+  toast('视频已导出（' + ext.toUpperCase() + '，' + audioTag + '）');
+  function cleanup(){
+    exporting = false; exportOverlay.classList.remove('show');
+    try { videoEl.muted = savedMuted; videoEl.playbackRate = savedRate; videoEl.currentTime = savedTime; if (wasPlaying) videoEl.play().catch(()=>{}); } catch(_){}
+  }
+}
+exportCancel.addEventListener('click', () => { exportCancelled = true; });
+function drawExportFrame(c, W, H, cardW, t){
+  c.fillStyle = '#0f1116'; c.fillRect(0, 0, W, H);
+  const videoX = cardW;
+  try { c.drawImage(videoEl, videoX, 0, videoNatW, videoNatH); } catch(_){}
+  c.save(); c.translate(videoX, 0);
+  for (const a of annotations){ if (a.type === 'card') continue; if (!isVisibleAt(a, t)) continue; drawAnn(c, a); }
+  c.restore();
+  if (cardW > 0){
+    const leftCards = annotations.filter(a => a.type === 'card' && a.side !== 'right' && isVisibleAt(a, t)).sort((a,b) => (a.anchorY||0) - (b.anchorY||0));
+    const rightCards = annotations.filter(a => a.type === 'card' && a.side === 'right' && isVisibleAt(a, t)).sort((a,b) => (a.anchorY||0) - (b.anchorY||0));
+    drawCardsColumn(c, leftCards, 0, cardW, videoX, 'left', t);
+    drawCardsColumn(c, rightCards, videoX + videoNatW, cardW, videoX, 'right', t);
+  }
+}
+function drawCardsColumn(c, cards, colX, colW, videoX, side, t){
+  let y = 20;
+  const PAD = 8, padX = 12, headH = 22, fs = 13, lh = 19;
+  for (const card of cards){
+    const textLines = wrapTextLines(c, card.text || '', colW - padX*2 - 8);
+    const bodyH = textLines.length ? textLines.length*lh + 10 : 30;
+    const h = headH + bodyH + 8;
+    c.save(); roundRect(c, colX+8, y, colW-16, h, 8); c.fillStyle = '#2b2f3b'; c.fill(); c.strokeStyle = '#3a3f4e'; c.lineWidth = 1; c.stroke(); c.restore();
+    c.save(); roundRect(c, colX+8, y, colW-16, h, 8); c.clip(); c.fillStyle = card.color || '#4c8dff'; c.fillRect(colX+8, y, 3, h); c.restore();
+    const numCX = colX + 8 + 16, numCY = y + 11;
+    c.beginPath(); c.arc(numCX, numCY, 8, 0, Math.PI*2); c.fillStyle = card.color || '#4c8dff'; c.fill();
+    c.fillStyle = '#fff'; c.font = `bold 10px ${FONT_FAMILY}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(String(card.num||''), numCX, numCY + 0.5);
+    c.fillStyle = '#8b91a4'; c.font = `11px ${FONT_FAMILY}`; c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.fillText(fmtTime(card.time||0), numCX + 13, numCY);
+    c.fillStyle = '#dfe2ea'; c.font = `${fs}px ${FONT_FAMILY}`; c.textAlign = 'left'; c.textBaseline = 'top';
+    let ty = y + headH + 4;
+    if (textLines.length){ for (const line of textLines){ c.fillText(line, colX + padX, ty); ty += lh; } }
+    else { c.fillStyle = '#5d6479'; c.fillText('（空卡片）', colX + padX, ty); }
+    const ax = videoX + (card.anchorX || videoNatW/2); const ay = (card.anchorY || videoNatH/2);
+    const cardEdgeX = side === 'left' ? (colX + colW - 8) : (colX + 8); const cardEdgeY = y + 18;
+    c.save(); c.strokeStyle = card.color || '#4c8dff'; c.lineWidth = 1.4; c.setLineDash([5,4]); c.globalAlpha = 0.75;
+    c.beginPath(); c.moveTo(cardEdgeX, cardEdgeY);
+    const midX = (cardEdgeX + ax)/2; c.bezierCurveTo(midX, cardEdgeY, midX, ay, ax, ay); c.stroke(); c.restore();
+    c.beginPath(); c.arc(ax, ay, 4, 0, Math.PI*2); c.fillStyle = card.color || '#4c8dff'; c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 1.4; c.stroke();
+    y += h + PAD;
+  }
+}
+
+/* 屏幕录制 */
+recBtn.addEventListener('click', () => { if (mediaRecorder && mediaRecorder.state !== 'inactive') stopRecording(); else startRecording(); });
+async function startRecording(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){ toast('当前浏览器不支持屏幕录制'); return; }
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    const mimeCandidates = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp9','video/webm;codecs=vp8,opus','video/webm;codecs=vp8','video/webm','video/mp4'];
+    let mimeType = ''; for (const m of mimeCandidates){ if (MediaRecorder.isTypeSupported(m)){ mimeType = m; break; } }
+    const hasAudio = stream.getAudioTracks().length > 0;
+    mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    recordedChunks = [];
+    mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recordedChunks, { type: mimeType || 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); const t = new Date(); const p = n => String(n).padStart(2,'0');
+      const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+      const soundTag = hasAudio ? '含声' : '静音';
+      a.download = `录制_${soundTag}_${t.getFullYear()}${p(t.getMonth()+1)}${p(t.getDate())}_${p(t.getHours())}${p(t.getMinutes())}${p(t.getSeconds())}.${ext}`;
+      a.href = url; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      stream.getTracks().forEach(tr => { try { tr.stop(); } catch(_){} });
+      toast('录制已保存（' + soundTag + '，' + ext.toUpperCase() + '）');
+    };
+    mediaRecorder.start(1000);
+    recStartTs = Date.now();
+    recBtn.textContent = '⏹ 停止'; recBtn.classList.add('running');
+    recIndicator.classList.add('show'); updateRecTimer();
+    recTimerHandle = setInterval(updateRecTimer, 500);
+    stream.getVideoTracks()[0].onended = () => { if (mediaRecorder && mediaRecorder.state !== 'inactive') stopRecording(); };
+    toast(hasAudio ? '录制已开始（含音频）' : '录制已开始（无音频）');
+  } catch(err){ if (err.name !== 'NotAllowedError') toast('录制启动失败：' + err.message); }
+}
+function stopRecording(){
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  mediaRecorder = null; recBtn.textContent = '🎬 录制'; recBtn.classList.remove('running');
+  recIndicator.classList.remove('show');
+  if (recTimerHandle){ clearInterval(recTimerHandle); recTimerHandle = null; }
+  recTimer.textContent = 'REC 00:00';
+}
+function updateRecTimer(){
+  const sec = Math.floor((Date.now() - recStartTs)/1000);
+  const m = String(Math.floor(sec/60)).padStart(2,'0'), s = String(sec%60).padStart(2,'0');
+  recTimer.textContent = `REC ${m}:${s}`;
+}
+function ensureAudioGraph(){
+  if (audioGraphCreated && audioDest) return audioDest;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    try { audioSource = audioCtx.createMediaElementSource(videoEl); }
+    catch(err){ if (err.name === 'InvalidStateError'){ console.warn('音频元素已绑定', err); toast('提示：如需再次导出带声视频，请刷新页面'); return null; } throw err; }
+    audioDest = audioCtx.createMediaStreamDestination();
+    audioSource.connect(audioCtx.destination); audioSource.connect(audioDest);
+    audioGraphCreated = true; return audioDest;
+  } catch(err){ console.warn('音频图创建失败', err); return null; }
+}
+async function resumeAudioCtx(){ if (audioCtx && audioCtx.state === 'suspended'){ try { await audioCtx.resume(); } catch(_){} } }
+
+/* UI */
+function updateCursor(){ if (!editMode){ canvas.style.cursor = 'default'; return; } canvas.style.cursor = tool === 'text' ? 'text' : tool === 'card' ? 'copy' : tool === 'select' ? 'default' : 'crosshair'; }
+function updateUI(){
+  undoBtn.disabled = historyStack.length === 0;
+  redoBtn.disabled = redoStack.length === 0;
+  clearBtn.disabled = annotations.length === 0;
+  saveProjectBtn.disabled = annotations.length === 0 && !videoLoaded;
+  exportVidBtn.disabled = !videoLoaded || videoSource !== 'local' || liveMode;
+  toolGroup.querySelectorAll(':scope > button[data-tool]').forEach(b => { if (b.id === 'shapeBtn' || b.id === 'moreBtn') return; b.classList.toggle('active', b.dataset.tool === tool); });
+  shapeBtn.classList.toggle('active', SHAPE_TOOLS.includes(tool));
+  shapeDrop.querySelectorAll('button[data-tool]').forEach(b => { b.classList.toggle('active', b.dataset.tool === tool); });
+  moreBtn.classList.toggle('active', tool === 'pen' || tool === 'highlight' || tool === 'card');
+  textOpts.style.display = (tool === 'text') ? 'flex' : 'none';
+  strokeOpts.style.display = (tool === 'pen' || SHAPE_TOOLS.includes(tool)) ? 'flex' : 'none';
+  timeOpts.style.display = videoLoaded ? 'flex' : 'none';
+  updateCursor();
+}
+
+/* 快捷键 */
+window.addEventListener('keydown', e => {
+  const path = e.composedPath ? e.composedPath() : [];
+  if (path.some(el => el && el.tagName && String(el.tagName).toLowerCase() === 'emoji-picker')) return;
+  if (e.target === textInput || editingText) return;
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if (exportOverlay.classList.contains('show')) return;
+
+  if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'F9'){ e.preventDefault(); if (mediaRecorder && mediaRecorder.state !== 'inactive'){ toast('已经在录制中。按 Ctrl+F10 停止'); } else { startRecording(); } return; }
+  if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'F10'){ e.preventDefault(); if (mediaRecorder && mediaRecorder.state !== 'inactive'){ stopRecording(); toast('已停止录制'); } else { toast('当前没有在录制'); } return; }
+  if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey){ setEditMode(!editMode); toast(editMode ? '编辑模式' : '播放模式'); return; }
+  if (e.ctrlKey || e.metaKey){
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey){ e.preventDefault(); undo(); return; }
+    if (k === 'y'){ e.preventDefault(); redo(); return; }
+    if (k === 'z' && e.shiftKey){ e.preventDefault(); redo(); return; }
+    if (k === 'c'){ e.preventDefault(); copySelected(); return; }
+    if (k === 'v'){ e.preventDefault(); pasteClipboard(); return; }
+  }
+  if (e.key === ' '){
+    e.preventDefault();
+    if (liveMode){
+      // ★ 直播模式下，空格不做任何"暂停"操作
+      toast('直播模式下时间持续流逝，无法暂停。你继续编辑就行，点工具那一刻会被记录');
+      return;
+    }
+    if (videoSource === 'local' && videoLoaded){ if (videoEl.paused) videoEl.play(); else videoEl.pause(); }
+    else if (videoSource === 'iframe'){ if (vclock.running){ vclockStop(); toast('虚拟时钟已暂停'); } else { vclockStart(); toast('虚拟时钟已启动'); } }
+    return;
+  }
+  if (e.key === 'ArrowLeft'){ e.preventDefault(); setCurrentTime(currentTime - 5); return; }
+  if (e.key === 'ArrowRight'){ e.preventDefault(); setCurrentTime(currentTime + 5); return; }
+  if (!editMode) return;
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId){ e.preventDefault(); pushHistory(deepCopy(annotations)); const kept = annotations.filter(a => a.id !== selectedId); annotations.length = 0; for (const x of kept) annotations.push(x); selectedId = null; renderCards(); renderTimeline(); scheduleRender(); updateUI(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'f' || e.key === 'F'){ fullscreenBtn.click(); return; }
+  const map = { 'v': 'select', 't': 'text', 'h': 'highlight', 'p': 'pen', 'r': 'rect', 'o': 'ellipse', 'l': 'line', 'w': 'wavy', 'a': 'arrow', 'c': 'card' };
+  const k = e.key.toLowerCase();
+  if (map[k]){ if (liveMode) recordPendingTime(); tool = map[k]; selectedId = null; updateCursor(); updateUI(); scheduleRender(); }
+});
+let resizeTimer = null;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { updateStageSize(); if (editingText){ applyTextInputStyle(); autoSizeTextInput(); } layoutCards(); scheduleLinks(); }, 80); });
+document.addEventListener('click', e => {
+  if (e.target.closest('#shapeDrop')) return;
+  if (e.target.closest('#moreDrop')) return;
+  if (e.target.closest('#emojiPopover')) return;
+  if (e.target.closest('#exportVidDrop')) return;
+  shapeDrop.classList.remove('open'); moreDrop.classList.remove('open'); emojiPopover.classList.remove('open'); exportVidDrop.classList.remove('open');
+});
+
+updateModeUI(); updateUI(); updateCursor(); updatePlayBtnUI(); updateClockTagUI(); applyPanelWidths(); initPanelResize();
+setTimeout(() => { toast('Ctrl+F9 开始录屏 / Ctrl+F10 停止 · 直播模式可边看边加'); }, 900);
+setTimeout(tryRestoreAutoSave, 500);
+})();
+</script>
+</body>
+</html>
