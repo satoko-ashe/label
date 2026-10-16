@@ -50,6 +50,16 @@ button.tool{padding:6px 9px;min-width:34px;}
 button.tool svg{display:block;}
 button.bold-btn{font-weight:800;font-size:15px;padding:4px 9px;min-width:32px;}
 
+/* ★ 返回首页按钮 */
+.back-home{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:30px;height:30px;border-radius:7px;
+  border:1px solid var(--border);background:#343746;
+  color:var(--text);font-size:15px;text-decoration:none;
+  flex-shrink:0;transition:.15s;margin-right:2px;
+}
+.back-home:hover{background:#414558;border-color:var(--accent);color:#fff;}
+
 .bg-preset{
   width:24px;height:24px;padding:0;border-radius:5px;
   border:1px solid rgba(255,255,255,.25);cursor:pointer;
@@ -257,12 +267,10 @@ emoji-picker{
   display:flex;padding:34px;min-width:0;
   background:repeating-conic-gradient(#26282f 0% 25%, #202229 0% 50%) 50% / 24px 24px;
 
-  /* ★ Firefox 滚动条 */
   scrollbar-color: #6b7285 #14161c;
   scrollbar-width: auto;
 }
 
-/* ★ 滚动条：更显眼、更容易抓 */
 .viewport::-webkit-scrollbar{
   width: 16px;
   height: 16px;
@@ -354,6 +362,7 @@ emoji-picker{
 
 <div class="toolbar">
   <div class="group">
+    <a class="back-home" href="https://satoko-ashe.github.io/label/" title="返回首页">←</a>
     <label class="btn" for="fileInput">📁 上传文件</label>
     <input type="file" id="fileInput"
            accept="image/*,.pdf,.docx,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation"
@@ -376,6 +385,7 @@ emoji-picker{
         <button data-tool="ellipse">◯　圆形 / 椭圆</button>
         <button data-tool="line">╱　直线 / 下划线</button>
         <button data-tool="wavy">〜　波浪线</button>
+        <button data-tool="arrow">➤　箭头</button>
       </div>
     </div>
 
@@ -409,11 +419,9 @@ emoji-picker{
     <button class="icon" id="rubyBtn" title="注音">拼音</button>
   </div>
 
+  <!-- ★ 底色：去掉3个预设色块，只保留取色盘 + 清除 -->
   <div class="group" id="textBgOpts">
     <label>底色</label>
-    <button class="bg-preset" data-bg="#fff3a3" style="background:#fff3a3"></button>
-    <button class="bg-preset" data-bg="#c8f0c8" style="background:#c8f0c8"></button>
-    <button class="bg-preset" data-bg="#b8dcff" style="background:#b8dcff"></button>
     <input type="color" id="bgColorPicker" value="#fff3a3">
     <button class="icon" id="bgClearBtn" title="清除底色">×</button>
   </div>
@@ -448,6 +456,7 @@ emoji-picker{
     <div class="dropdown" id="toolBoxDrop">
       <button class="btn link-btn" id="toolBoxBtn">🛠 工具栏 ▾</button>
       <div class="dropdown-menu">
+        <button data-link="./image-editor.html">✂️ 图片编辑器</button>
         <button data-link="./video-annotation.html">🎬 视频标注工具</button>
         <button data-link="https://smallpdf.com/cn/pdf-to-png">📄 在线转换（PDF → PNG）</button>
         <button data-link="https://www.gaitubao.com/">🖼 图片修改（改图宝）</button>
@@ -550,7 +559,7 @@ const MAX_HISTORY = 20;
 const LINE_HEIGHT = 1.25;
 const HIGHLIGHT_ALPHA = 0.35;
 const MIN_ZOOM = 0.05, MAX_ZOOM = 12, MAX_CANVAS_PIXELS = 48e6;
-const SHAPE_TOOLS = ['rect', 'ellipse', 'line', 'wavy'];
+const SHAPE_TOOLS = ['rect', 'ellipse', 'line', 'wavy', 'arrow'];
 const PROJECT_EXT = '.ipaj';
 const MIN_FONT = 5, MAX_FONT = 500;
 const RUBY_GAP_FACTOR = 0.95;
@@ -592,7 +601,6 @@ const colorPicker = $('colorPicker');
 const fontSizeInput = $('fontSizeInput'), fontMinus = $('fontMinus'), fontPlus = $('fontPlus');
 const fontWeightSel = $('fontWeightSel'), boldBtn = $('boldBtn');
 const bgColorPicker = $('bgColorPicker'), bgClearBtn = $('bgClearBtn');
-const bgPresets = Array.from(document.querySelectorAll('.bg-preset'));
 const widthRange = $('widthRange'), widthVal = $('widthVal');
 const textOpts = $('textOpts'), textBgOpts = $('textBgOpts'), strokeOpts = $('strokeOpts'), toolGroup = $('toolGroup');
 const hideBtn = $('hideBtn'), undoBtn = $('undoBtn'), redoBtn = $('redoBtn'), clearBtn = $('clearBtn');
@@ -1165,7 +1173,6 @@ function fitToView(){
   viewportEl.scrollLeft = 0;
   viewportEl.scrollTop = 0;
 }
-/* ★ 同步 zoomInput（若用户正在输入则不覆盖） */
 function updateZoomLabel(){
   if (document.activeElement !== zoomInput){
     zoomInput.value = Math.round(zoom * 100);
@@ -1175,7 +1182,6 @@ function zoomBy(factor){
   const r = viewportEl.getBoundingClientRect();
   setZoom(zoom * factor, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
 }
-/* ★ 应用输入框的百分比数值 */
 function applyZoomInputValue(pct){
   const maxPct = MAX_ZOOM * 100;
   const minPct = MIN_ZOOM * 100;
@@ -1196,7 +1202,6 @@ zoomInput.addEventListener('blur', () => {
     applyZoomInputValue(zoomInput.value);
   }
 });
-/* ★ 输入框上滚轮微调（按住 Shift 步子更大） */
 zoomInput.addEventListener('wheel', e => {
   if (!img){ return; }
   e.preventDefault();
@@ -1274,6 +1279,35 @@ function drawWavyLine(c, x1, y1, x2, y2, w, color){
   c.stroke();
   c.restore();
 }
+/* ★ 新增：箭头绘制 */
+function drawArrow(c, x1, y1, x2, y2, w, color){
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  if (len < 1) return;
+  const ux = dx / len, uy = dy / len;
+  const headLen = Math.max(12, w * 2.5);
+  const headW   = Math.max(8, w * 1.6);
+  const bx = x2 - ux * headLen;
+  const by = y2 - uy * headLen;
+  const px = -uy, py = ux;
+  c.save();
+  c.strokeStyle = color;
+  c.fillStyle = color;
+  c.lineWidth = Math.max(1, w);
+  c.lineCap = 'round';
+  c.lineJoin = 'round';
+  c.beginPath();
+  c.moveTo(x1, y1);
+  c.lineTo(bx, by);
+  c.stroke();
+  c.beginPath();
+  c.moveTo(x2, y2);
+  c.lineTo(bx + px * headW / 2, by + py * headW / 2);
+  c.lineTo(bx - px * headW / 2, by - py * headW / 2);
+  c.closePath();
+  c.fill();
+  c.restore();
+}
 function drawWatermark(c, a){
   const W = a.imgW || 1000;
   const H = a.imgH || 1000;
@@ -1292,8 +1326,9 @@ function drawWatermark(c, a){
   c.rotate(rad);
   const diag = Math.hypot(W, H);
   const textW = c.measureText(text).width;
-  const stepX = Math.max(a.gap || 260, textW + fs * 0.9);
-  const stepY = Math.max((a.gap || 260) * 0.75, fs * 2);
+  const gap = a.gap || 260;
+  const stepX = Math.max(gap, textW + fs * 0.9);
+  const stepY = Math.max(gap * 0.75, fs * 2);
   const cols = Math.ceil(diag / stepX) + 1;
   const rows = Math.ceil(diag / stepY) + 1;
   for (let row = -rows; row <= rows; row++){
@@ -1376,6 +1411,10 @@ function drawAnn(c, a){
     drawWavyLine(c, a.x, a.y, a.x2, a.y2, a.width, a.color);
     return;
   }
+  if (a.type === 'arrow'){
+    drawArrow(c, a.x, a.y, a.x2, a.y2, a.width, a.color);
+    return;
+  }
   if (a.type === 'rect' || a.type === 'ellipse' || a.type === 'line'){
     const { x: x1, y: y1, x2, y2 } = a;
     c.save();
@@ -1444,7 +1483,7 @@ function boundsOf(a){
     return { x: a.anchorX - r, y: a.anchorY - r, w: r * 2, h: r * 2 };
   }
   if (a.type === 'highlight' || a.type === 'rect' || a.type === 'ellipse' ||
-      a.type === 'line' || a.type === 'wavy'){
+      a.type === 'line' || a.type === 'wavy' || a.type === 'arrow'){
     const x = Math.min(a.x, a.x2), y = Math.min(a.y, a.y2);
     return { x, y, w: Math.abs(a.x2 - a.x), h: Math.abs(a.y2 - a.y) };
   }
@@ -1963,7 +2002,7 @@ canvas.addEventListener('pointermove', e => {
         a.x = newX; a.y = newY;
         a.w = Math.max(8, newW); a.h = Math.max(8, newH);
       } else if (a.type === 'rect' || a.type === 'ellipse' || a.type === 'highlight' ||
-                 a.type === 'line' || a.type === 'wavy'){
+                 a.type === 'line' || a.type === 'wavy' || a.type === 'arrow'){
         a.x = newX; a.y = newY; a.x2 = newX + newW; a.y2 = newY + newH;
       } else if (a.type === 'pen'){
         const sx = newW / Math.max(sb.w, 1), sy = newH / Math.max(sb.h, 1);
@@ -1984,9 +2023,9 @@ canvas.addEventListener('pointermove', e => {
   else if (a.type === 'pen'){
     const last = a.points[a.points.length - 1];
     if (Math.hypot(p.x - last.x, p.y - last.y) > 1.2) a.points.push(p);
-  } else if (a.type === 'rect' || a.type === 'ellipse' || a.type === 'line' || a.type === 'wavy'){
+  } else if (a.type === 'rect' || a.type === 'ellipse' || a.type === 'line' || a.type === 'wavy' || a.type === 'arrow'){
     let ex = p.x, ey = p.y;
-    if (a.type === 'line' || a.type === 'wavy'){
+    if (a.type === 'line' || a.type === 'wavy' || a.type === 'arrow'){
       if (e.shiftKey){
         const dx = ex - a.x, dy = ey - a.y;
         const snap = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
@@ -2032,7 +2071,7 @@ function endDrawing(){
   let valid = false;
   if (a){
     if (a.type === 'highlight' || a.type === 'rect' || a.type === 'ellipse' ||
-        a.type === 'line' || a.type === 'wavy'){
+        a.type === 'line' || a.type === 'wavy' || a.type === 'arrow'){
       valid = Math.abs(a.x2 - a.x) > 3 || Math.abs(a.y2 - a.y) > 3;
     } else if (a.type === 'pen'){
       valid = a.points.length > 1;
@@ -2079,7 +2118,7 @@ function preventBlur(el){
   if (!el) return;
   el.addEventListener('mousedown', e => e.preventDefault());
 }
-[...bgPresets, supBtn, subBtn, rubyBtn, boldBtn, fontMinus, fontPlus,
+[supBtn, subBtn, rubyBtn, boldBtn, fontMinus, fontPlus,
  bgColorPicker, bgClearBtn, hideBtn, undoBtn, redoBtn, clearBtn, colorPicker,
  zoomInBtn, zoomOutBtn, zoomFitBtn, zoom100Btn, fullscreenBtn, thumbToggleBtn].forEach(preventBlur);
 
@@ -2385,14 +2424,8 @@ wmRemove.addEventListener('click', () => {
   toast('已移除水印');
 });
 
-function markBgPresetActive(color){
-  bgPresets.forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.bg === color);
-  });
-}
 function applyBackground(color){
   currentBgColor = color || null;
-  markBgPresetActive(currentBgColor);
   if (currentBgColor) bgColorPicker.value = currentBgColor;
   if (editingText){
     editingText.bgColor = currentBgColor;
@@ -2406,12 +2439,6 @@ function applyBackground(color){
     render();
   }
 }
-bgPresets.forEach(btn => {
-  btn.addEventListener('click', e => {
-    e.preventDefault();
-    applyBackground(btn.dataset.bg);
-  });
-});
 bgColorPicker.addEventListener('input', () => applyBackground(bgColorPicker.value));
 bgClearBtn.addEventListener('click', e => {
   e.preventDefault();
@@ -2459,7 +2486,6 @@ function syncToolbarFromSelection(){
     fontWeightSel.value = currentFontWeight;
     currentBgColor = a.bgColor || null;
     if (a.bgColor) bgColorPicker.value = a.bgColor;
-    markBgPresetActive(currentBgColor);
   }
   if (a.type === 'pen' || SHAPE_TOOLS.indexOf(a.type) >= 0){
     if (typeof a.width === 'number'){
@@ -3224,7 +3250,8 @@ window.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === 'F11'){ e.preventDefault(); fullscreenBtn.click(); return; }
   const map = { 'v': 'select', 't': 'text', 'n': 'note', 'h': 'highlight',
-                'p': 'pen', 'r': 'rect', 'o': 'ellipse', 'l': 'line', 'w': 'wavy' };
+                'p': 'pen', 'r': 'rect', 'o': 'ellipse', 'l': 'line', 'w': 'wavy',
+                'a': 'arrow' };
   const k = e.key.toLowerCase();
   if (map[k]){
     tool = map[k];
@@ -3298,7 +3325,6 @@ updateCursor();
 updatePagesBarVisibility();
 fontSizeInput.value = currentFontSize;
 zoomInput.value = Math.round(zoom * 100);
-markBgPresetActive(currentBgColor);
 setTimeout(tryRestoreAutoSave, 400);
 
 })();
