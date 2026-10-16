@@ -1946,6 +1946,124 @@ function cleanupCropResources(){
 }
 
 recSettingsBtn.addEventListener('click', () => openRecSettingsPanel());
+/* ====================== 定时录制 ====================== */
+const scheduledRec = { enabled:false, startMs:0, endMs:0, preppedStream:null, timerId:null, statusTick:null };
+
+function fmtRemain(ms){
+  const s = Math.max(0, Math.round(ms/1000));
+  const h = String(Math.floor(s/3600)).padStart(2,'0');
+  const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+  const ss = String(s%60).padStart(2,'0');
+  return `${h}:${m}:${ss}`;
+}
+function updateScheduleStatus(){
+  const el = document.getElementById('recScheduleStatus');
+  if (!el) return;
+  if (!scheduledRec.enabled){ el.textContent = ''; return; }
+  const now = Date.now();
+  if (now < scheduledRec.startMs){
+    el.textContent = `⏳ ${fmtRemain(scheduledRec.startMs - now)} 后开始`;
+  } else if (now < scheduledRec.endMs){
+    el.textContent = `⏺ 录制中 · ${fmtRemain(scheduledRec.endMs - now)} 后结束`;
+  } else {
+    el.textContent = '已完成';
+  }
+}
+function checkScheduledRec(){
+  if (!scheduledRec.enabled) return;
+  const now = Date.now();
+  /* 到点停止 */
+  if (now >= scheduledRec.endMs && (recState === 'recording' || recState === 'paused')){
+    stopRecordingSession();
+    scheduledRec.enabled = false;
+    if (scheduledRec.timerId){ clearInterval(scheduledRec.timerId); scheduledRec.timerId = null; }
+    if (scheduledRec.statusTick){ clearInterval(scheduledRec.statusTick); scheduledRec.statusTick = null; }
+    if (scheduledRec.preppedStream){
+      try{ scheduledRec.preppedStream.getTracks().forEach(t => t.stop()); }catch(_){}
+      scheduledRec.preppedStream = null;
+    }
+    updateScheduleStatus();
+    toast('⏰ 定时录制已结束');
+    return;
+  }
+  /* 到点开始 */
+  if (now >= scheduledRec.startMs && recState === 'idle' && scheduledRec.preppedStream){
+    const stream = scheduledRec.preppedStream;
+    scheduledRec.preppedStream = null;
+    /* 检查 stream 是否还活着 */
+    if (!stream.getVideoTracks().length || stream.getVideoTracks()[0].readyState === 'ended'){
+      toast('屏幕共享已失效，定时录制无法开始');
+      scheduledRec.enabled = false;
+      if (scheduledRec.timerId){ clearInterval(scheduledRec.timerId); scheduledRec.timerId = null; }
+      updateScheduleStatus();
+      return;
+    }
+    /* 直接开始录制（跳过倒计时） */
+    toast('⏰ 定时录制开始！');
+    beginNewRecorder(stream, stream);
+  }
+  updateScheduleStatus();
+}
+
+document.addEventListener('click', async (e) => {
+  if (e.target && e.target.id === 'recScheduleEnable'){
+    const st = document.getElementById('recStartTime').value;
+    const et = document.getElementById('recEndTime').value;
+    if (!st || !et){ toast('请先填写开始和结束时间'); return; }
+    const now = new Date();
+    const parse = (str) => {
+      const [h, m] = str.split(':').map(Number);
+      const d = new Date(now);
+      d.setHours(h, m, 0, 0);
+      if (d.getTime() <= now.getTime() - 60000) d.setDate(d.getDate() + 1);
+      return d.getTime();
+    };
+    const startMs = parse(st);
+    const endMs = parse(et);
+    if (endMs <= startMs){ toast('结束时间必须晚于开始时间'); return; }
+    if (startMs - now.getTime() < 30000){ toast('开始时间必须在 30 秒之后'); return; }
+    toast('请在系统弹窗中授权屏幕共享…');
+    let stream;
+    try{
+      const constraints = { video: { frameRate: 30 }, audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false } };
+      if (recSettings.mode === 'full') constraints.video.displaySurface = 'monitor';
+      stream = await navigator.mediaDevices.getDisplayMedia(constraints);
+    }catch(err){
+      toast('授权取消或失败：' + (err.message || err.name));
+      return;
+    }
+    /* 关闭前面的定时 */
+    if (scheduledRec.timerId){ clearInterval(scheduledRec.timerId); scheduledRec.timerId = null; }
+    if (scheduledRec.statusTick){ clearInterval(scheduledRec.statusTick); scheduledRec.statusTick = null; }
+    if (scheduledRec.preppedStream){
+      try{ scheduledRec.preppedStream.getTracks().forEach(t => t.stop()); }catch(_){}
+    }
+    scheduledRec.enabled = true;
+    scheduledRec.startMs = startMs;
+    scheduledRec.endMs = endMs;
+    scheduledRec.preppedStream = stream;
+    /* 用户中途点"停止共享"也要能感知 */
+    const vt = stream.getVideoTracks()[0];
+    if (vt) vt.onended = () => { if (scheduledRec.enabled && Date.now() < scheduledRec.startMs){ toast('屏幕共享已停止，定时录制已取消'); scheduledRec.enabled = false; if (scheduledRec.timerId) clearInterval(scheduledRec.timerId); updateScheduleStatus(); } };
+    scheduledRec.timerId = setInterval(checkScheduledRec, 5000);
+    scheduledRec.statusTick = setInterval(updateScheduleStatus, 1000);
+    checkScheduledRec();
+    updateScheduleStatus();
+    toast(`定时已启用 · ${new Date(startMs).toLocaleTimeString()} 开始，${new Date(endMs).toLocaleTimeString()} 结束`);
+  }
+  if (e.target && e.target.id === 'recScheduleDisable'){
+    scheduledRec.enabled = false;
+    if (scheduledRec.timerId){ clearInterval(scheduledRec.timerId); scheduledRec.timerId = null; }
+    if (scheduledRec.statusTick){ clearInterval(scheduledRec.statusTick); scheduledRec.statusTick = null; }
+    if (scheduledRec.preppedStream){
+      try{ scheduledRec.preppedStream.getTracks().forEach(t => t.stop()); }catch(_){}
+      scheduledRec.preppedStream = null;
+    }
+    if (recState === 'recording' || recState === 'paused') stopRecordingSession();
+    updateScheduleStatus();
+    toast('定时录制已关闭');
+  }
+}, true);
 function openRecSettingsPanel(){
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -1975,7 +2093,24 @@ function openRecSettingsPanel(){
         <button data-close>取消</button>
         <button class="primary" id="saveRecSettings">保存</button>
       </div>
-    </div>
+          <div class="modal-section">
+        <div class="modal-section-title">⏰ 定时录制（可选）</div>
+        <div class="row" style="gap:10px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:12px;color:var(--muted)">开始</label>
+          <input type="time" id="recStartTime" style="width:110px;background:#343746;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 8px">
+          <label style="font-size:12px;color:var(--muted)">结束</label>
+          <input type="time" id="recEndTime" style="width:110px;background:#343746;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 8px">
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6">
+          点"启用"后会立即弹出屏幕授权窗口，请点击"允许"并保持浏览器标签页开启。到点自动开始/停止录制。
+        </div>
+        <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+          <button id="recScheduleEnable" class="primary" style="height:34px;font-size:12px">⏰ 启用定时录制</button>
+          <button id="recScheduleDisable" class="ghost" style="height:34px;font-size:12px">停止定时</button>
+          <span id="recScheduleStatus" style="font-size:11.5px;color:var(--ok);margin-left:6px"></span>
+        </div>
+      </div>
+  </div>
   `;
   document.body.appendChild(overlay);
   let tempMode = recSettings.mode;
@@ -2187,7 +2322,13 @@ document.addEventListener('click', e => {
   shapeDrop.classList.remove('open'); moreDrop.classList.remove('open'); emojiPopover.classList.remove('open'); exportVidDrop.classList.remove('open');
 });
 
-updateModeUI(); updateUI(); updateCursor(); updatePlayBtnUI(); updateClockTagUI(); applyPanelWidths(); initPanelResize(); initPanelToggle(); updateRecUI();
+updateModeUI(); updateUI(); updateCursor(); updatePlayBtnUI(); updateClockTagUI();
+panelWidths.right = 260;      // 右侧默认 260px（时间轴同宽）
+applyPanelWidths();
+initPanelResize(); initPanelToggle();
+panelCollapsed.left = true;   // 左侧默认折叠
+updatePanelToggle('left');
+updateRecUI();
 setTimeout(() => { toast('Ctrl+F9 开始录制（先选窗口 → 框选 → 3 秒倒计时）'); }, 900);
 setTimeout(tryRestoreAutoSave, 500);
 })();
