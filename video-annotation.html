@@ -619,6 +619,7 @@ function startMusicMode(){
 
   updateProgressUI();
   updateStageSize();
+  renderCards();   
   renderTimeline();
   scheduleRender();
   updateUI();
@@ -641,6 +642,7 @@ function stopMusicMode(){
   if (vclock.running) vclockStop(); // 兜底：退出时停掉虚拟时钟
   try { iframeEl.src = 'about:blank'; } catch(_){}
   iframeEl.style.display = 'none';
+  renderCards();
   updateClockTagUI();
   toast('已退出音乐模式');
 }
