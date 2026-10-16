@@ -69,6 +69,16 @@ input[type=text]{background:#343746;color:var(--text);border:1px solid var(--bor
 .cards-panel[data-side="left"] .resize-handle{right:-4px;}
 .cards-panel[data-side="right"] .resize-handle{left:-4px;}
 .cards-panel.empty .resize-handle{display:none;}
+/* ★ 侧边栏折叠按钮 */
+.panel-toggle{position:absolute;top:50%;transform:translateY(-50%);width:16px;height:56px;background:#2b2f3b;border:1px solid var(--border);color:#8891a4;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:11px;line-height:1;padding:0;z-index:25;transition:.15s;border-radius:5px;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.35);}
+.panel-toggle:hover{background:var(--accent);color:#fff;border-color:var(--accent);transform:translateY(-50%) scale(1.08);}
+.cards-panel:not(.empty) .panel-toggle{display:flex;}
+.cards-panel[data-side="left"] .panel-toggle{right:-14px;}
+.cards-panel[data-side="right"] .panel-toggle{left:-14px;}
+.cards-panel.collapsed{width:0 !important;flex-basis:0 !important;border:none;}
+.cards-panel.collapsed .panel-inner{opacity:0;visibility:hidden;pointer-events:none;}
+.cards-panel.empty .panel-inner{opacity:0;visibility:hidden;pointer-events:none;}
+.cards-panel.collapsed .resize-handle{display:none;}
 .side-card{position:absolute;left:6px;right:6px;background:#2b2f3b;border:1px solid #3a3f4e;border-left:3px solid var(--card-color, #4c8dff);border-radius:6px;overflow:hidden;display:none;box-shadow:0 2px 8px rgba(0,0,0,.35);}
 .side-card.visible{display:block;animation:cardIn .2s ease-out;}
 @keyframes cardIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
@@ -87,6 +97,8 @@ input[type=text]{background:#343746;color:var(--text);border:1px solid var(--bor
 .stage-inner video{object-fit:contain;}
 #canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;z-index:5;transition:opacity .15s;}
 #canvas.no-interact{pointer-events:none;opacity:0;}
+/* ★ B站/YouTube 模式：canvas 底部留 72px 空白，让播放控件可点击 */
+#canvas.iframe-pad-bottom{clip-path:inset(0 0 72px 0);}
 .play-indicator{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:rgba(46,204,113,.92);color:#fff;padding:6px 16px;border-radius:16px;font-size:12px;font-weight:600;pointer-events:none;z-index:8;opacity:0;transition:.2s;}
 .play-indicator.show{opacity:1;}
 .live-indicator{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:linear-gradient(135deg,#ff2d55,#c0392b);color:#fff;padding:6px 18px;border-radius:16px;font-size:12px;font-weight:700;pointer-events:none;z-index:8;opacity:0;transition:.2s;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(255,45,85,.5);letter-spacing:.3px;}
@@ -330,9 +342,10 @@ emoji-picker{width:320px;height:380px;max-width:90vw;max-height:65vh;--backgroun
 <div class="editor">
   <div class="center-wrap" id="centerWrap">
     <div class="cards-panel empty" id="cardsLeft" data-side="left">
-      <div class="panel-inner"><div class="panel-label">左侧卡片</div></div>
-      <div class="resize-handle" data-resize="left"></div>
-    </div>
+  <div class="panel-inner"><div class="panel-label">左侧卡片</div></div>
+  <button class="panel-toggle" data-side="left" title="折叠左侧卡片">◀</button>
+  <div class="resize-handle" data-resize="left"></div>
+</div>
     <div class="stage" id="stage">
       <div class="empty" id="empty">
         <div class="big">🎬</div>
@@ -352,9 +365,10 @@ emoji-picker{width:320px;height:380px;max-width:90vw;max-height:65vh;--backgroun
       </div>
     </div>
     <div class="cards-panel empty" id="cardsRight" data-side="right">
-      <div class="panel-inner"><div class="panel-label">右侧卡片</div></div>
-      <div class="resize-handle" data-resize="right"></div>
-    </div>
+  <div class="panel-inner"><div class="panel-label">右侧卡片</div></div>
+  <button class="panel-toggle" data-side="right" title="折叠右侧卡片">▶</button>
+  <div class="resize-handle" data-resize="right"></div>
+</div>
     <svg class="link-svg" id="linkSvg"></svg>
   </div>
   <div class="timeline-panel">
@@ -431,9 +445,6 @@ const TICK_INTERVAL = 1/30, IFRAME_MAX_SECONDS = 3600*4;
 const MIN_PANEL_W = 80, MAX_PANEL_W = 420;
 const REC_SETTINGS_KEY = 'video-annotation-rec-settings-v4';
 
-/* ★★★ 音乐播放器地址：同项目内相对路径优先级最高
-   你可以把音乐播放器放到同目录的 music/ 下，例如 ./music/index.html
-   如果该文件不存在，系统会自动降级使用“虚拟时钟”，播放按钮将控制进度条走动 */
 const MUSIC_PLAYER_URL = './music/index.html';
 
 const $ = id => document.getElementById(id);
@@ -495,6 +506,8 @@ let liveMode = false, livePendingTime = null, liveStartTime = 0;
 
 /* 音乐模式状态 */
 let musicMode = false;
+/* ★ 新增：音乐模式下的"浏览 / 绘制"开关。true = 浏览（canvas 穿透，鼠标可操作播放器） */
+let musicBrowseMode = true;
 let musicPlayerState = { playing: false, time: 0, duration: 0, title: '' };
 let musicIframeReady = false;
 
@@ -579,6 +592,7 @@ function startMusicMode(){
   if (liveMode) stopLiveMode();
 
   musicMode = true;
+  musicBrowseMode = true; // ★ 默认进入浏览模式，鼠标可以直接操作播放器
   videoSource = 'music';
   videoLoaded = true;
 
@@ -590,7 +604,7 @@ function startMusicMode(){
   musicIframeReady = false;
   iframeEl.src = MUSIC_PLAYER_URL;
 
-  videoNatW = 1280; videoNatH = 720; // 默认，后面会自适应
+  videoNatW = 1280; videoNatH = 720;
   stageInner.style.display = ''; emptyEl.style.display = 'none';
 
   vclockStop();
@@ -610,6 +624,7 @@ function startMusicMode(){
   editIcon.style.display = 'none';
   progressWrap.classList.add('music-progress');
   progressWrap.classList.remove('live-progress','iframe-mode');
+  canvas.classList.remove('iframe-pad-bottom');
 
   musicBtn.classList.add('music');
   musicBtn.textContent = '音乐模式';
@@ -619,30 +634,47 @@ function startMusicMode(){
 
   updateProgressUI();
   updateStageSize();
-  renderCards();   
+
+   /* ★ 按实际卡片数决定是否显示两侧面板：有卡片就展开，无卡片自动隐藏 */
+  renderCards();
+  /* ★ 音乐模式：默认折叠两侧卡片面板，让音乐器占满 */
+  panelCollapsed.left = true;
+  panelCollapsed.right = true;
+  updatePanelToggle('left');
+  updatePanelToggle('right');
+
+  editMode = true; // 视频工具的编辑/播放状态在音乐模式下不用，但保持为 true 以保证其他逻辑兼容
   renderTimeline();
   scheduleRender();
+  updateModeUI();
   updateUI();
   updateClockTagUI();
   updatePlayBtnUI();
-  
-  // 【核心修复】音乐模式保持编辑状态，不锁死画布
-  setEditMode(true);
 
-  toast('音乐模式已开启 · 直接操作播放器即可，或点击下方时间轴控制');
+  toast('音乐模式已开启 · 浏览模式可直接操作播放器，点工具或按 M 切到绘制');
 }
 
 function stopMusicMode(){
   if (!musicMode) return;
   musicMode = false;
+  musicBrowseMode = true;
   musicBtn.classList.remove('music');
   musicIndicator.classList.remove('show');
   timeDisplay.classList.remove('music-mode');
   progressWrap.classList.remove('music-progress');
-  if (vclock.running) vclockStop(); // 兜底：退出时停掉虚拟时钟
+  if (vclock.running) vclockStop();
   try { iframeEl.src = 'about:blank'; } catch(_){}
   iframeEl.style.display = 'none';
+  canvas.classList.remove('iframe-pad-bottom');
+  /* 恢复侧边卡片面板（按已有标注重新计算） */
   renderCards();
+  /* ★ 退出音乐模式：恢复面板展开状态 */
+  panelCollapsed.left = false;
+  panelCollapsed.right = false;
+  updatePanelToggle('left');
+  updatePanelToggle('right');
+  updateModeUI();
+  updateUI();
   updateClockTagUI();
   toast('已退出音乐模式');
 }
@@ -661,9 +693,7 @@ function sendToMusicPlayer(msg){
 iframeEl.addEventListener('load', () => {
   if (!musicMode) return;
   musicIframeReady = true;
-  setTimeout(() => {
-    sendToMusicPlayer({ type: 'music-request-state' });
-  }, 500);
+  setTimeout(() => { sendToMusicPlayer({ type: 'music-request-state' }); }, 500);
   updateMusicIndicator();
 });
 
@@ -683,10 +713,7 @@ window.addEventListener('message', (e) => {
     };
     if (musicPlayerState.time != null) currentTime = musicPlayerState.time;
     if (musicPlayerState.duration) videoDuration = musicPlayerState.duration;
-    
-    // 如果收到播放状态，确保虚拟时钟停止
     if (vclock.running) vclockStop();
-    
     updateProgressUI();
     updateMusicIndicator();
     updatePlayBtnUI();
@@ -716,7 +743,6 @@ function updatePlayBtnUI(){
   if (musicMode){
     playBtn.classList.remove('vclock','running');
     playBtn.classList.add('music-play');
-    // 有播放器时看音频状态，没有时看虚拟时钟状态
     playBtn.textContent = musicPlayerState.playing ? '⏸' : '▶';
     return;
   }
@@ -734,24 +760,55 @@ function updateClockTagUI(){
 
 /* 模式切换 */
 function setEditMode(on){ editMode = !!on; updateModeUI(); }
+
+/* ★ 核心：updateModeUI 里区分音乐模式和视频模式 */
 function updateModeUI(){
+  if (musicMode){
+    /* 音乐模式：不锁死画布；模式按钮变成"浏览/绘制"切换 */
+    canvas.classList.remove('no-interact');
+    toolGroup.style.opacity = ''; toolGroup.style.pointerEvents = '';
+    textOpts.style.opacity = ''; strokeOpts.style.opacity = '';
+    playIndicator.classList.remove('show');
+    if (musicBrowseMode){
+      modeBtn.textContent = '🖐 浏览模式';
+      modeBtn.classList.remove('primary', 'play');
+    } else {
+      modeBtn.textContent = '✏️ 绘制模式';
+      modeBtn.classList.add('primary');
+      modeBtn.classList.remove('play');
+    }
+    updateCursor();
+    return;
+  }
+  /* 视频模式（本机 / iframe）：保持原来的编辑 / 播放逻辑 */
   if (editMode){
-    canvas.classList.remove('no-interact'); modeBtn.textContent = '✏️ 编辑模式'; modeBtn.classList.remove('play');
+    canvas.classList.remove('no-interact'); modeBtn.textContent = '✏️ 编辑模式'; modeBtn.classList.add('primary'); modeBtn.classList.remove('play');
     playIndicator.classList.remove('show');
     toolGroup.style.opacity = ''; toolGroup.style.pointerEvents = '';
     textOpts.style.opacity = ''; strokeOpts.style.opacity = '';
   } else {
-    canvas.classList.add('no-interact'); modeBtn.textContent = '▶️ 播放模式'; modeBtn.classList.add('play');
-    if (!musicMode) {
-      playIndicator.classList.add('show');
-    }
+    canvas.classList.add('no-interact'); modeBtn.textContent = '▶️ 播放模式'; modeBtn.classList.remove('primary'); modeBtn.classList.add('play');
+    playIndicator.classList.add('show');
     toolGroup.style.opacity = '0.35'; toolGroup.style.pointerEvents = 'none';
     textOpts.style.opacity = '0.35'; strokeOpts.style.opacity = '0.35';
     if (editingText) commitText();
   }
   updateCursor();
 }
-modeBtn.addEventListener('click', () => { setEditMode(!editMode); toast(editMode ? '编辑模式' : '播放模式'); });
+
+/* ★ 模式按钮点击：音乐模式下切换浏览/绘制，视频模式下保持原逻辑 */
+modeBtn.addEventListener('click', () => {
+  if (musicMode){
+    musicBrowseMode = !musicBrowseMode;
+    /* 切到浏览模式时，把已选中的工具切换回选择工具，避免误操作 */
+    if (musicBrowseMode){ commitText(); }
+    updateModeUI(); updateUI();
+    toast(musicBrowseMode ? '🖐 浏览模式 · 可直接操作播放器' : '✏️ 绘制模式 · 在画面上加标注');
+    return;
+  }
+  setEditMode(!editMode);
+  toast(editMode ? '编辑模式' : '播放模式');
+});
 
 /* 面板宽度 */
 function applyPanelWidths(){ cardsLeft.style.width = panelWidths.left+'px'; cardsLeft.style.flexBasis = panelWidths.left+'px'; cardsRight.style.width = panelWidths.right+'px'; cardsRight.style.flexBasis = panelWidths.right+'px'; }
@@ -768,6 +825,33 @@ function initPanelResize(){
       function move(ev){ const dx = ev.clientX - startX; let newW = side === 'left' ? startW + dx : startW - dx; newW = clamp(newW, MIN_PANEL_W, MAX_PANEL_W); panelWidths[side] = newW; applyPanelWidths(); updateStageSize(); layoutCards(); scheduleLinks(); }
       function up(){ document.body.style.cursor = ''; handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); scheduleAutosave(); }
       handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
+    });
+  });
+}
+/* ★ 侧边栏折叠按钮 */
+const panelCollapsed = { left: false, right: false };
+function updatePanelToggle(side){
+  const panel = side === 'left' ? cardsLeft : cardsRight;
+  const btn = panel.querySelector('.panel-toggle');
+  if (!btn) return;
+  if (panelCollapsed[side]){
+    panel.classList.add('collapsed');
+    btn.textContent = side === 'left' ? '▶' : '◀';
+    btn.title = '展开' + (side === 'left' ? '左侧' : '右侧') + '卡片';
+  } else {
+    panel.classList.remove('collapsed');
+    btn.textContent = side === 'left' ? '◀' : '▶';
+    btn.title = '折叠' + (side === 'left' ? '左侧' : '右侧') + '卡片';
+  }
+  setTimeout(() => { updateStageSize(); layoutCards(); scheduleLinks(); }, 30);
+}
+function initPanelToggle(){
+  document.querySelectorAll('.panel-toggle').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const side = btn.dataset.side;
+      panelCollapsed[side] = !panelCollapsed[side];
+      updatePanelToggle(side);
     });
   });
 }
@@ -939,16 +1023,13 @@ function hitHandle(p){
 /* 舞台 */
 function updateStageSize(){
   if (!videoLoaded) return;
-  
   let cw, ch;
   if (musicMode) {
-    // 【核心修复】音乐模式下，让播放器占满舞台，不留黑边
     cw = Math.max(100, stage.clientWidth - 40);
     ch = Math.max(60, stage.clientHeight - 40);
   } else {
     cw = videoNatW; ch = videoNatH;
   }
-
   const availW = Math.max(100, stage.clientWidth-40);
   const availH = Math.max(60, stage.clientHeight-40);
   const baseScale = Math.min(availW/cw, availH/ch, 1);
@@ -1066,7 +1147,7 @@ function noteTitle(a){
 function renderTimeline(){
   const list = annotations.slice().sort((a,b) => (a.time||0) - (b.time||0));
   timelineCount.textContent = String(annotations.length);
-  if (!list.length){ timelineList.innerHTML = '<div class="timeline-empty">还没有标注。<br><br>选中一个工具，在画面上添加内容。</div>'; renderProgressMarkers(); return; }
+  if (!list.length){ timelineList.innerHTML = '<div class="timeline-empty">还没有标注。<br><br>选中一个工具，在视频画面上添加内容。</div>'; renderProgressMarkers(); return; }
   timelineList.innerHTML = '';
   for (const a of list){
     const item = document.createElement('div');
@@ -1121,7 +1202,6 @@ function setCurrentTime(t){
   if (musicMode){
     if (typeof t === 'number'){
       currentTime = t;
-      // 发送 seek 命令给播放器
       sendToMusicPlayer({ type: 'ctrl-seek', time: t });
       updateProgressUI(); scheduleRender();
     }
@@ -1144,7 +1224,6 @@ timeDisplay.addEventListener('click', () => { if (liveMode) return; if (musicMod
 
 playBtn.addEventListener('click', () => {
   if (musicMode){
-    // 发送播放/暂停命令给音乐播放器
     sendToMusicPlayer({ type: 'ctrl-toggle' });
     return;
   }
@@ -1219,6 +1298,7 @@ function loadLocalVideo(file){
   progress.disabled = false;
   manualTimeHint.classList.remove('show'); timeDisplay.classList.remove('editable','music-mode'); editIcon.style.display = 'none';
   progressWrap.classList.remove('iframe-mode','music-progress');
+  canvas.classList.remove('iframe-pad-bottom');
   updateClockTagUI(); updatePlayBtnUI(); setEditMode(true);
   toast('本机视频已加载（可导出视频）'); scheduleAutosave();
 }
@@ -1243,18 +1323,26 @@ function loadIframeVideo(url){
   progress.disabled = false; progress.max = String(IFRAME_MAX_SECONDS);
   timeDisplay.classList.add('editable'); timeDisplay.classList.remove('music-mode'); editIcon.style.display = 'inline';
   progressWrap.classList.add('iframe-mode'); progressWrap.classList.remove('music-progress');
+    canvas.classList.add('iframe-pad-bottom');   // ★ 底部留空，B站控件可点击
   updateProgressUI(); updateStageSize(); renderTimeline(); scheduleRender(); updateUI(); updateClockTagUI(); updatePlayBtnUI();
-  setEditMode(false);
+  setEditMode(true);                            // ★ 默认就是编辑模式，直接能画
   manualTimeHint.classList.add('show'); setTimeout(() => manualTimeHint.classList.remove('show'), 10000);
   toast('已嵌入在线视频。直播请点「🎥 直播模式」');
 }
 
 /* 工具栏 */
 liveBtn.addEventListener('click', toggleLiveMode);
+
+/* ★ 工具选择：音乐浏览模式下，点击工具自动切到绘制模式 */
 toolGroup.addEventListener('click', e => {
   if (e.target.closest('#shapeBtn')) return; if (e.target.closest('#moreBtn')) return;
   const btn = e.target.closest('button[data-tool]'); if (!btn) return;
-  if (!editMode){ toast('请先切换到编辑模式'); return; }
+  /* 音乐浏览模式下，用户点击工具 = 想加标注，自动切到绘制模式 */
+  if (musicMode && musicBrowseMode){
+    musicBrowseMode = false;
+    updateModeUI();
+  }
+  if (!musicMode && !editMode){ toast('请先切换到编辑模式'); return; }
   const t = btn.dataset.tool;
   if (t === tool && !SHAPE_TOOLS.includes(t)) return;
   commitText(); if (liveMode) recordPendingTime();
@@ -1262,13 +1350,15 @@ toolGroup.addEventListener('click', e => {
   shapeDrop.classList.remove('open'); moreDrop.classList.remove('open');
   updateCursor(); updateUI(); scheduleRender();
 });
-shapeBtn.addEventListener('click', e => { e.stopPropagation(); if (!editMode){ toast('请先切换到编辑模式'); return; } const wasOpen = shapeDrop.classList.contains('open'); moreDrop.classList.remove('open'); exportVidDrop.classList.remove('open'); shapeDrop.classList.toggle('open', !wasOpen); });
-moreBtn.addEventListener('click', e => { e.stopPropagation(); if (!editMode){ toast('请先切换到编辑模式'); return; } const wasOpen = moreDrop.classList.contains('open'); shapeDrop.classList.remove('open'); exportVidDrop.classList.remove('open'); moreDrop.classList.toggle('open', !wasOpen); });
+shapeBtn.addEventListener('click', e => { e.stopPropagation(); if (!musicMode && !editMode){ toast('请先切换到编辑模式'); return; } const wasOpen = shapeDrop.classList.contains('open'); moreDrop.classList.remove('open'); exportVidDrop.classList.remove('open'); shapeDrop.classList.toggle('open', !wasOpen); });
+moreBtn.addEventListener('click', e => { e.stopPropagation(); if (!musicMode && !editMode){ toast('请先切换到编辑模式'); return; } const wasOpen = moreDrop.classList.contains('open'); shapeDrop.classList.remove('open'); exportVidDrop.classList.remove('open'); moreDrop.classList.toggle('open', !wasOpen); });
 exportVidBtn.addEventListener('click', e => { e.stopPropagation(); if (exportVidBtn.disabled) return; const wasOpen = exportVidDrop.classList.contains('open'); shapeDrop.classList.remove('open'); moreDrop.classList.remove('open'); exportVidDrop.classList.toggle('open', !wasOpen); });
-shapeDrop.querySelector('.dropdown-menu').addEventListener('click', e => { const btn = e.target.closest('button[data-tool]'); if (!btn) return; e.stopPropagation(); commitText(); if (liveMode) recordPendingTime(); tool = btn.dataset.tool; selectedId = null; shapeDrop.classList.remove('open'); updateCursor(); updateUI(); scheduleRender(); });
+shapeDrop.querySelector('.dropdown-menu').addEventListener('click', e => { const btn = e.target.closest('button[data-tool]'); if (!btn) return; e.stopPropagation(); if (musicMode && musicBrowseMode){ musicBrowseMode = false; updateModeUI(); } commitText(); if (liveMode) recordPendingTime(); tool = btn.dataset.tool; selectedId = null; shapeDrop.classList.remove('open'); updateCursor(); updateUI(); scheduleRender(); });
 moreDrop.querySelector('.dropdown-menu').addEventListener('click', e => {
   const btn = e.target.closest('button[data-more]'); if (!btn) return; e.stopPropagation();
   const act = btn.dataset.more; moreDrop.classList.remove('open');
+  /* 音乐浏览模式下，点"更多工具"里的项也自动切到绘制模式 */
+  if (musicMode && musicBrowseMode && act !== 'image'){ musicBrowseMode = false; updateModeUI(); }
   if (act === 'highlight' || act === 'pen'){ commitText(); if (liveMode) recordPendingTime(); tool = act; selectedId = null; updateCursor(); updateUI(); scheduleRender(); return; }
   if (act === 'card'){ if (!videoLoaded){ toast('请先加载视频或音乐'); return; } commitText(); if (liveMode) recordPendingTime(); tool = 'card'; selectedId = null; updateCursor(); updateUI(); toast('在画面上点击创建侧边卡片'); return; }
   if (act === 'image'){ if (!videoLoaded){ toast('请先加载视频或音乐'); return; } imageInsertInput.click(); return; }
@@ -1298,6 +1388,8 @@ imageInsertInput.addEventListener('change', async e => {
     pushHistory(deepCopy(annotations));
     const a = { id: idSeq++, type: 'image', x: (videoNatW-w)/2, y: (videoNatH-h)/2, w, h, _src: dataUrl, time: stampTime(), duration: DEFAULT_DURATION };
     annotations.push(a); selectedId = a.id; tool = 'select';
+    /* 切回选择工具后，保持绘制模式（音乐模式下也可以主动切回浏览） */
+    if (musicMode){ musicBrowseMode = false; updateModeUI(); }
     updateCursor(); updateUI(); renderTimeline(); scheduleRender(); syncToolbarFromSelection(); scheduleAutosave();
     toast('图片已插入');
   } catch (err){ console.error(err); toast('图片插入失败'); }
@@ -2080,7 +2172,7 @@ function openHelpPanel(){
       <div class="shortcut-list">
         <div class="sc-row"><kbd>空格</kbd><span class="sc-desc">播放 / 暂停（音乐模式下同步控制播放器）</span></div>
         <div class="sc-row"><kbd>← / →</kbd><span class="sc-desc">后退 / 前进 5 秒</span></div>
-        <div class="sc-row"><kbd>M</kbd><span class="sc-desc">切换编辑 / 播放模式</span></div>
+        <div class="sc-row"><kbd>M</kbd><span class="sc-desc">音乐模式：切换浏览 / 绘制；视频模式：切换编辑 / 播放</span></div>
         <div class="sc-row"><kbd>F</kbd><span class="sc-desc">全屏显示</span></div>
         <div class="sc-row"><kbd>Ctrl + Z</kbd><span class="sc-desc">撤销</span></div>
         <div class="sc-row"><kbd>Ctrl + Y</kbd><span class="sc-desc">重做</span></div>
@@ -2103,7 +2195,17 @@ function openHelpPanel(){
 }
 
 /* UI */
-function updateCursor(){ if (!editMode){ canvas.style.cursor = 'default'; return; } canvas.style.cursor = tool === 'text' ? 'text' : tool === 'card' ? 'copy' : tool === 'select' ? 'default' : 'crosshair'; }
+function updateCursor(){
+  /* ★ 音乐模式 + 浏览状态：canvas 鼠标穿透，用户可直接操作音乐播放器 */
+  if (musicMode && musicBrowseMode){
+    canvas.style.pointerEvents = 'none';
+    canvas.style.cursor = 'default';
+    return;
+  }
+  canvas.style.pointerEvents = '';
+  if (!editMode){ canvas.style.cursor = 'default'; return; }
+  canvas.style.cursor = tool === 'text' ? 'text' : tool === 'card' ? 'copy' : tool === 'select' ? 'default' : 'crosshair';
+}
 function updateUI(){
   undoBtn.disabled = historyStack.length === 0;
   redoBtn.disabled = redoStack.length === 0;
@@ -2131,7 +2233,17 @@ window.addEventListener('keydown', e => {
   if (exportOverlay.classList.contains('show')) return;
   if (e.ctrlKey && (e.key === 'F9' || e.key === 'F10')) return;
 
-  if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey){ setEditMode(!editMode); toast(editMode ? '编辑模式' : '播放模式'); return; }
+  if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey){
+    /* ★ 音乐模式下 M 键切换浏览/绘制 */
+    if (musicMode){
+      musicBrowseMode = !musicBrowseMode;
+      if (musicBrowseMode){ commitText(); }
+      updateModeUI(); updateUI();
+      toast(musicBrowseMode ? '🖐 浏览模式' : '✏️ 绘制模式');
+      return;
+    }
+    setEditMode(!editMode); toast(editMode ? '编辑模式' : '播放模式'); return;
+  }
   if (e.ctrlKey || e.metaKey){
     const k = e.key.toLowerCase();
     if (k === 'z' && !e.shiftKey){ e.preventDefault(); undo(); return; }
