@@ -452,6 +452,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5;font-size:12px}
 </style>
 </head>
 <body data-view="list">
+<audio id="myAudio" style="display:none;"></audio>
 <div class="app">
   <header class="topbar">
     <div class="topbar-row">
@@ -3780,6 +3781,36 @@ async function init(){
 
 init();
 })();
+/* ======= 与视频标注工具的通信协议 ======= */
+window.addEventListener('message', (e) => {
+  const d = e.data || {};
+  if (d.type === 'ctrl-play') audio.play().catch(()=>{});
+  else if (d.type === 'ctrl-pause') audio.pause();
+  else if (d.type === 'ctrl-toggle') { if(audio.paused) audio.play().catch(()=>{}); else audio.pause(); }
+  else if (d.type === 'ctrl-seek') { if(audio.duration) audio.currentTime = d.time; }
+  else if (d.type === 'ctrl-rate') audio.playbackRate = d.rate;
+});
+
+function postStateToParent(){
+  if (window.parent === window) return; // 不在 iframe 里就不发
+  window.parent.postMessage({
+    type: 'music-state',
+    playing: !audio.paused && !audio.ended,
+    time: audio.currentTime,
+    duration: audio.duration || 0,
+    title: document.querySelector('.np-title')?.textContent || ''
+  }, '*');
+}
+
+// 绑定事件，让父窗口实时获取进度
+audio.addEventListener('play', postStateToParent);
+audio.addEventListener('pause', postStateToParent);
+audio.addEventListener('timeupdate', postStateToParent);
+audio.addEventListener('seeked', postStateToParent);
+audio.addEventListener('loadedmetadata', postStateToParent);
+
+// 页面准备好后，通知父窗口
+window.parent.postMessage({ type: 'music-ready' }, '*');
 </script>
 </body>
 </html>

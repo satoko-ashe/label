@@ -29,7 +29,7 @@ button.tool{padding:6px 9px;min-width:34px;}
 #liveBtn.live::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:#fff;margin-right:2px;animation:liveDotBlink 1.2s ease-in-out infinite;}
 #musicBtn{font-weight:600;min-width:118px;transition:all .2s;}
 #musicBtn.music{background:linear-gradient(135deg,#1db954,#158a3f);border-color:#158a3f;color:#fff;box-shadow:0 0 0 2px rgba(29,185,84,.25);}
-#musicBtn.music::before{content:'🎵';display:inline-block;margin-right:2px;}
+#musicBtn.music::before{display:none;}
 @keyframes liveBtnPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,45,85,.55);}50%{box-shadow:0 0 0 8px rgba(255,45,85,0);}}
 @keyframes liveDotBlink{0%,100%{opacity:1;}50%{opacity:.3;}}
 #exportVidBtn{font-weight:600;background:linear-gradient(135deg,#8e44ad,#6c3483);border-color:#6c3483;color:#fff;}
@@ -497,7 +497,6 @@ let liveMode = false, livePendingTime = null, liveStartTime = 0;
 let musicMode = false;
 let musicPlayerState = { playing: false, time: 0, duration: 0, title: '' };
 let musicIframeReady = false;
-let musicSyncTimer = null;
 
 let recState = 'idle';
 let mediaRecorder = null;
@@ -591,7 +590,7 @@ function startMusicMode(){
   musicIframeReady = false;
   iframeEl.src = MUSIC_PLAYER_URL;
 
-  videoNatW = 1280; videoNatH = 720;
+  videoNatW = 1280; videoNatH = 720; // 默认，后面会自适应
   stageInner.style.display = ''; emptyEl.style.display = 'none';
 
   vclockStop();
@@ -613,7 +612,7 @@ function startMusicMode(){
   progressWrap.classList.remove('live-progress','iframe-mode');
 
   musicBtn.classList.add('music');
-  musicBtn.textContent = '🎵 音乐模式';
+  musicBtn.textContent = '音乐模式';
   musicIndicator.classList.add('show');
 
   manualTimeHint.classList.remove('show');
@@ -629,16 +628,12 @@ function startMusicMode(){
   // 【核心修复】音乐模式保持编辑状态，不锁死画布
   setEditMode(true);
 
-  if (musicSyncTimer) clearInterval(musicSyncTimer);
-  musicSyncTimer = setInterval(pullMusicState, 500);
-
   toast('音乐模式已开启 · 直接操作播放器即可，或点击下方时间轴控制');
 }
 
 function stopMusicMode(){
   if (!musicMode) return;
   musicMode = false;
-  if (musicSyncTimer){ clearInterval(musicSyncTimer); musicSyncTimer = null; }
   musicBtn.classList.remove('music');
   musicIndicator.classList.remove('show');
   timeDisplay.classList.remove('music-mode');
@@ -655,95 +650,56 @@ function toggleMusicMode(){
 }
 musicBtn.addEventListener('click', toggleMusicMode);
 
-/* 与 iframe 通信：优先同源直接访问；跨域则用 postMessage 协议 */
-function getMusicFrameDoc(){
-  try{
-    const d = iframeEl.contentDocument;
-    if (d) return d;
-  }catch(_){}
-  return null;
-}
-function getMusicAudio(){
-  const d = getMusicFrameDoc();
-  if (!d) return null;
-  try {
-    const a = d.querySelector('audio');
-    return a || null;
-  } catch(_){ return null; }
-}
+/* 发送控制消息给音乐播放器 */
 function sendToMusicPlayer(msg){
   try { iframeEl.contentWindow.postMessage(msg, '*'); return true; } catch(_){ return false; }
 }
 
-/* 拉取音乐播放器当前状态（同源直接读；跨域等待 postMessage 推送） */
-function pullMusicState(){
+/* 当 iframe 加载完成时 */
+iframeEl.addEventListener('load', () => {
   if (!musicMode) return;
-  const audio = getMusicAudio();
-  
-  // 【核心修复】如果没有音乐播放器（未上传/未加载），降级使用虚拟时钟兜底
-  if (!audio) {
-    if (!vclock.running) { vclockStart(); }
-    updatePlayBtnUI();
-    return;
-  }
-  if (vclock.running) { vclockStop(); }
-
-  const titleEl = (()=>{
-    const d = getMusicFrameDoc();
-    if (!d) return null;
-    return d.querySelector('#pbTitle') || d.querySelector('.pb-title') || d.querySelector('.np-title');
-  })();
-  const st = {
-    playing: !audio.paused && !audio.ended,
-    time: audio.currentTime || 0,
-    duration: audio.duration || 0,
-    title: titleEl ? (titleEl.textContent || '').trim() : ''
-  };
-  applyMusicState(st);
-}
-
-function applyMusicState(st){
-  musicPlayerState = st;
-  if (videoSource !== 'music') return;
-  if (st.time != null) currentTime = st.time;
-  if (st.duration) videoDuration = st.duration;
-  updateProgressUI();
+  musicIframeReady = true;
+  setTimeout(() => {
+    sendToMusicPlayer({ type: 'music-request-state' });
+  }, 500);
   updateMusicIndicator();
-  updatePlayBtnUI();
-  scheduleRender();
-}
+});
 
-function updateMusicIndicator(){
-  if (!musicMode) return;
-  const audio = getMusicAudio();
-  if (!audio) {
-    musicIndicatorText.textContent = '虚拟时钟（未检测到播放器）';
-    return;
-  }
-  const t = musicPlayerState.title ? `· ${musicPlayerState.title}` : '';
-  musicIndicatorText.textContent = (musicPlayerState.playing ? '正在播放' : '已暂停') + ' ' + t;
-}
-
-/* 跨域场景：接收音乐播放器主动推送的状态 */
-window.addEventListener('message', (e)=>{
+/* 接收音乐播放器的状态推送 */
+window.addEventListener('message', (e) => {
   const d = e.data || {};
-  if (d.type === 'music-state' && videoSource === 'music'){
-    applyMusicState({
+  if (d.type === 'music-ready' && videoSource === 'music'){
+    musicIframeReady = true;
+    sendToMusicPlayer({ type: 'music-request-state' });
+    updateMusicIndicator();
+  } else if (d.type === 'music-state' && videoSource === 'music'){
+    musicPlayerState = {
       playing: !!d.playing,
       time: Number(d.time) || 0,
       duration: Number(d.duration) || 0,
       title: d.title || ''
-    });
-  } else if (d.type === 'music-ready' && videoSource === 'music'){
-    musicIframeReady = true;
+    };
+    if (musicPlayerState.time != null) currentTime = musicPlayerState.time;
+    if (musicPlayerState.duration) videoDuration = musicPlayerState.duration;
+    
+    // 如果收到播放状态，确保虚拟时钟停止
+    if (vclock.running) vclockStop();
+    
+    updateProgressUI();
     updateMusicIndicator();
-    try { iframeEl.contentWindow.postMessage({ type: 'music-request-state' }, '*'); } catch(_){}
+    updatePlayBtnUI();
+    scheduleRender();
   }
 });
 
+function updateMusicIndicator(){
+  if (!musicMode) return;
+  const t = musicPlayerState.title ? `· ${musicPlayerState.title}` : '';
+  musicIndicatorText.textContent = (musicPlayerState.playing ? '正在播放' : '已暂停') + ' ' + t;
+}
+
 /* ================= 虚拟时钟 ================= */
 function vclockStart(){ 
-  // 修改拦截条件：本地视频不适用，其余（iframe、直播、无播放器的音乐模式）均可启动
   if (videoSource === 'local') return; 
   if (vclock.running) return; 
   vclock.running = true; 
@@ -758,12 +714,8 @@ function updatePlayBtnUI(){
   if (musicMode){
     playBtn.classList.remove('vclock','running');
     playBtn.classList.add('music-play');
-    const audio = getMusicAudio();
-    if (audio) {
-      playBtn.textContent = musicPlayerState.playing ? '⏸' : '▶';
-    } else {
-      playBtn.textContent = vclock.running ? '⏸' : '▶';
-    }
+    // 有播放器时看音频状态，没有时看虚拟时钟状态
+    playBtn.textContent = musicPlayerState.playing ? '⏸' : '▶';
     return;
   }
   playBtn.classList.remove('music-play');
@@ -788,7 +740,6 @@ function updateModeUI(){
     textOpts.style.opacity = ''; strokeOpts.style.opacity = '';
   } else {
     canvas.classList.add('no-interact'); modeBtn.textContent = '▶️ 播放模式'; modeBtn.classList.add('play');
-    // 【核心修复】音乐模式下不弹出播放提示，避免与音乐指示器重叠
     if (!musicMode) {
       playIndicator.classList.add('show');
     }
@@ -986,7 +937,16 @@ function hitHandle(p){
 /* 舞台 */
 function updateStageSize(){
   if (!videoLoaded) return;
-  const cw = videoNatW, ch = videoNatH;
+  
+  let cw, ch;
+  if (musicMode) {
+    // 【核心修复】音乐模式下，让播放器占满舞台，不留黑边
+    cw = Math.max(100, stage.clientWidth - 40);
+    ch = Math.max(60, stage.clientHeight - 40);
+  } else {
+    cw = videoNatW; ch = videoNatH;
+  }
+
   const availW = Math.max(100, stage.clientWidth-40);
   const availH = Math.max(60, stage.clientHeight-40);
   const baseScale = Math.min(availW/cw, availH/ch, 1);
@@ -1159,11 +1119,8 @@ function setCurrentTime(t){
   if (musicMode){
     if (typeof t === 'number'){
       currentTime = t;
-      const audio = getMusicAudio();
-      if (audio) {
-        sendToMusicPlayer({ type: 'ctrl-seek', time: t });
-      }
-      if (vclock.running) vclock.lastTs = performance.now();
+      // 发送 seek 命令给播放器
+      sendToMusicPlayer({ type: 'ctrl-seek', time: t });
       updateProgressUI(); scheduleRender();
     }
     return;
@@ -1185,15 +1142,8 @@ timeDisplay.addEventListener('click', () => { if (liveMode) return; if (musicMod
 
 playBtn.addEventListener('click', () => {
   if (musicMode){
-    const audio = getMusicAudio();
-    if (audio) {
-      sendToMusicPlayer({ type: 'ctrl-toggle' });
-      setTimeout(pullMusicState, 120);
-    } else {
-      // 【核心修复】没有真实音频时，手动控制虚拟时钟
-      if (vclock.running) vclockStop(); else vclockStart();
-      updatePlayBtnUI();
-    }
+    // 发送播放/暂停命令给音乐播放器
+    sendToMusicPlayer({ type: 'ctrl-toggle' });
     return;
   }
   if (liveMode){ toast('直播模式下时间持续流逝，无法暂停。你继续编辑，点工具那一刻会被记录'); return; }
@@ -1201,21 +1151,11 @@ playBtn.addEventListener('click', () => {
   if (videoSource === 'iframe'){ if (vclock.running){ vclockStop(); toast('虚拟时钟已暂停'); } else { vclockStart(); toast('虚拟时钟已启动'); } }
 });
 prevBtn.addEventListener('click', () => {
-  if (musicMode){ 
-    const audio = getMusicAudio();
-    if(audio) sendToMusicPlayer({ type: 'ctrl-seek', time: Math.max(0, currentTime - 5) }); 
-    else setCurrentTime(Math.max(0, currentTime - 5));
-    return; 
-  }
+  if (musicMode){ sendToMusicPlayer({ type: 'ctrl-seek', time: Math.max(0, currentTime - 5) }); return; }
   setCurrentTime(currentTime - 5);
 });
 nextBtn.addEventListener('click', () => {
-  if (musicMode){ 
-    const audio = getMusicAudio();
-    if(audio) sendToMusicPlayer({ type: 'ctrl-seek', time: currentTime + 5 }); 
-    else setCurrentTime(currentTime + 5);
-    return; 
-  }
+  if (musicMode){ sendToMusicPlayer({ type: 'ctrl-seek', time: currentTime + 5 }); return; }
   setCurrentTime(currentTime + 5);
 });
 prevMarkBtn.addEventListener('click', () => { const marks = annotations.filter(a => a.type !== 'watermark' && a.time != null).map(a => a.time).sort((a,b) => a-b); const before = marks.filter(t => t < currentTime - 0.1); if (before.length) setCurrentTime(before[before.length-1]); else if (marks.length) setCurrentTime(marks[0]); });
@@ -2225,16 +2165,6 @@ document.addEventListener('click', e => {
   if (e.target.closest('#exportVidDrop')) return;
   if (e.target.closest('#watermarkPanel')) return;
   shapeDrop.classList.remove('open'); moreDrop.classList.remove('open'); emojiPopover.classList.remove('open'); exportVidDrop.classList.remove('open');
-});
-
-/* 当 iframe 加载完成时，尝试安装直接控制（同源） */
-iframeEl.addEventListener('load', () => {
-  if (!musicMode) return;
-  musicIframeReady = true;
-  setTimeout(() => {
-    pullMusicState();
-    updateMusicIndicator();
-  }, 200);
 });
 
 updateModeUI(); updateUI(); updateCursor(); updatePlayBtnUI(); updateClockTagUI(); applyPanelWidths(); initPanelResize(); updateRecUI();
