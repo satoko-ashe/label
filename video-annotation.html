@@ -56,29 +56,26 @@ input[type=text]{background:#343746;color:var(--text);border:1px solid var(--bor
 .editor{flex:1 1 auto;display:flex;overflow:hidden;min-height:0;}
 .center-wrap{flex:1 1 auto;display:flex;position:relative;overflow:hidden;min-width:0;background:#0f1116;}
 .center-wrap:fullscreen{background:#0f1116;padding:0;}
-.cards-panel{width:170px;flex:0 0 170px;background:var(--panel);position:relative;overflow:visible;transition:width .1s,flex-basis .1s;}
+.cards-panel{width:170px;flex:0 0 170px;background:#16181f;position:relative;overflow:visible;transition:width .1s,flex-basis .1s;border:1px dashed #3a3f4e;box-shadow:inset 0 0 24px rgba(0,0,0,.35);}
 .cards-panel[data-side="left"]{border-right:1px solid var(--border);}
 .cards-panel[data-side="right"]{border-left:1px solid var(--border);}
-.cards-panel.empty{width:0 !important;flex-basis:0 !important;border:none;}
 .cards-panel .panel-inner{position:absolute;inset:0;overflow:hidden;}
-.cards-panel .panel-label{position:absolute;top:8px;left:0;right:0;text-align:center;font-size:10px;color:#5b6175;letter-spacing:1px;user-select:none;pointer-events:none;}
+.cards-panel .panel-label{position:absolute;top:8px;left:0;right:0;text-align:center;font-size:11px;color:#4a5268;letter-spacing:1px;user-select:none;pointer-events:none;}
 .resize-handle{position:absolute;top:0;bottom:0;width:8px;cursor:ew-resize;z-index:20;display:flex;align-items:center;justify-content:center;background:transparent;transition:background .15s;}
 .resize-handle::after{content:'';width:3px;height:40px;background:rgba(76,141,255,.35);border-radius:2px;transition:all .15s;}
 .resize-handle:hover{background:rgba(76,141,255,.15);}
 .resize-handle:hover::after{background:var(--accent);height:70px;}
 .cards-panel[data-side="left"] .resize-handle{right:-4px;}
 .cards-panel[data-side="right"] .resize-handle{left:-4px;}
-.cards-panel.empty .resize-handle{display:none;}
 /* ★ 侧边栏折叠按钮 */
-.panel-toggle{position:absolute;top:50%;transform:translateY(-50%);width:16px;height:56px;background:#2b2f3b;border:1px solid var(--border);color:#8891a4;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:11px;line-height:1;padding:0;z-index:25;transition:.15s;border-radius:5px;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.35);}
+.panel-toggle{position:absolute;top:50%;transform:translateY(-50%);width:16px;height:56px;background:#2b2f3b;border:1px solid var(--border);color:#8891a4;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;padding:0;z-index:25;transition:.15s;border-radius:5px;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.35);}
 .panel-toggle:hover{background:var(--accent);color:#fff;border-color:var(--accent);transform:translateY(-50%) scale(1.08);}
-.cards-panel:not(.empty) .panel-toggle{display:flex;}
 .cards-panel[data-side="left"] .panel-toggle{right:-14px;}
 .cards-panel[data-side="right"] .panel-toggle{left:-14px;}
 .cards-panel.collapsed{width:0 !important;flex-basis:0 !important;border:none;}
 .cards-panel.collapsed .panel-inner{opacity:0;visibility:hidden;pointer-events:none;}
-.cards-panel.empty .panel-inner{opacity:0;visibility:hidden;pointer-events:none;}
 .cards-panel.collapsed .resize-handle{display:none;}
+.cards-panel.collapsed .panel-toggle{display:flex;}
 .side-card{position:absolute;left:6px;right:6px;background:#2b2f3b;border:1px solid #3a3f4e;border-left:3px solid var(--card-color, #4c8dff);border-radius:6px;overflow:hidden;display:none;box-shadow:0 2px 8px rgba(0,0,0,.35);}
 .side-card.visible{display:block;animation:cardIn .2s ease-out;}
 @keyframes cardIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
@@ -97,7 +94,6 @@ input[type=text]{background:#343746;color:var(--text);border:1px solid var(--bor
 .stage-inner video{object-fit:contain;}
 #canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;z-index:5;transition:opacity .15s;}
 #canvas.no-interact{pointer-events:none;opacity:0;}
-/* ★ B站/YouTube 模式：canvas 底部留 72px 空白，让播放控件可点击 */
 #canvas.iframe-pad-bottom{clip-path:inset(0 0 72px 0);}
 .play-indicator{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:rgba(46,204,113,.92);color:#fff;padding:6px 16px;border-radius:16px;font-size:12px;font-weight:600;pointer-events:none;z-index:8;opacity:0;transition:.2s;}
 .play-indicator.show{opacity:1;}
@@ -341,11 +337,11 @@ emoji-picker{width:320px;height:380px;max-width:90vw;max-height:65vh;--backgroun
 
 <div class="editor">
   <div class="center-wrap" id="centerWrap">
-    <div class="cards-panel empty" id="cardsLeft" data-side="left">
-  <div class="panel-inner"><div class="panel-label">左侧卡片</div></div>
-  <button class="panel-toggle" data-side="left" title="折叠左侧卡片">◀</button>
-  <div class="resize-handle" data-resize="left"></div>
-</div>
+    <div class="cards-panel" id="cardsLeft" data-side="left">
+      <div class="panel-inner"><div class="panel-label">左侧卡片</div></div>
+      <button class="panel-toggle" data-side="left" title="折叠左侧卡片">◀</button>
+      <div class="resize-handle" data-resize="left"></div>
+    </div>
     <div class="stage" id="stage">
       <div class="empty" id="empty">
         <div class="big">🎬</div>
@@ -364,11 +360,11 @@ emoji-picker{width:320px;height:380px;max-width:90vw;max-height:65vh;--backgroun
         <div class="fullscreen-toast" id="fullscreenToast">按 Esc 退出全屏</div>
       </div>
     </div>
-    <div class="cards-panel empty" id="cardsRight" data-side="right">
-  <div class="panel-inner"><div class="panel-label">右侧卡片</div></div>
-  <button class="panel-toggle" data-side="right" title="折叠右侧卡片">▶</button>
-  <div class="resize-handle" data-resize="right"></div>
-</div>
+    <div class="cards-panel" id="cardsRight" data-side="right">
+      <div class="panel-inner"><div class="panel-label">右侧卡片</div></div>
+      <button class="panel-toggle" data-side="right" title="折叠右侧卡片">▶</button>
+      <div class="resize-handle" data-resize="right"></div>
+    </div>
     <svg class="link-svg" id="linkSvg"></svg>
   </div>
   <div class="timeline-panel">
@@ -444,7 +440,6 @@ const DEFAULT_DURATION = 3, MIN_FONT = 8, MAX_FONT = 200, MIN_WIDTH = 1, MAX_WID
 const TICK_INTERVAL = 1/30, IFRAME_MAX_SECONDS = 3600*4;
 const MIN_PANEL_W = 80, MAX_PANEL_W = 420;
 const REC_SETTINGS_KEY = 'video-annotation-rec-settings-v4';
-
 const MUSIC_PLAYER_URL = './music/index.html';
 
 const $ = id => document.getElementById(id);
@@ -503,11 +498,7 @@ let autosaveTimer = null;
 let audioCtx = null, audioSource = null, audioDest = null, audioGraphCreated = false;
 let exportCancelled = false, exporting = false;
 let liveMode = false, livePendingTime = null, liveStartTime = 0;
-
-/* 音乐模式状态 */
-let musicMode = false;
-/* ★ 新增：音乐模式下的"浏览 / 绘制"开关。true = 浏览（canvas 穿透，鼠标可操作播放器） */
-let musicBrowseMode = true;
+let musicMode = false, musicBrowseMode = true;
 let musicPlayerState = { playing: false, time: 0, duration: 0, title: '' };
 let musicIframeReady = false;
 
@@ -523,9 +514,7 @@ let recHasAudio = false;
 let activeCropVideo = null, activeCropCanvas = null, activeCropStream = null, activeCropRafId = null, activeSourceStream = null;
 
 let recSettings = { mode: 'full', regionRatio: null };
-function loadRecSettings(){
-  try { const raw = localStorage.getItem(REC_SETTINGS_KEY); if (raw){ const d = JSON.parse(raw); if (d && (d.mode === 'full' || d.mode === 'region')) recSettings.mode = d.mode; if (d && d.regionRatio && typeof d.regionRatio.x === 'number') recSettings.regionRatio = d.regionRatio; } } catch(_){}
-}
+function loadRecSettings(){ try { const raw = localStorage.getItem(REC_SETTINGS_KEY); if (raw){ const d = JSON.parse(raw); if (d && (d.mode === 'full' || d.mode === 'region')) recSettings.mode = d.mode; if (d && d.regionRatio && typeof d.regionRatio.x === 'number') recSettings.regionRatio = d.regionRatio; } } catch(_){} }
 function saveRecSettings(){ try { localStorage.setItem(REC_SETTINGS_KEY, JSON.stringify(recSettings)); } catch(_){} }
 loadRecSettings();
 
@@ -590,34 +579,26 @@ function stampTime(){ if (liveMode && livePendingTime != null) return livePendin
 function startMusicMode(){
   if (musicMode) return;
   if (liveMode) stopLiveMode();
-
   musicMode = true;
-  musicBrowseMode = true; // ★ 默认进入浏览模式，鼠标可以直接操作播放器
+  musicBrowseMode = true;
   videoSource = 'music';
   videoLoaded = true;
-
   try { videoEl.pause(); } catch(_){}
   videoEl.removeAttribute('src'); videoEl.load();
   videoEl.style.display = 'none';
   iframeEl.style.display = '';
-
   musicIframeReady = false;
   iframeEl.src = MUSIC_PLAYER_URL;
-
   videoNatW = 1280; videoNatH = 720;
   stageInner.style.display = ''; emptyEl.style.display = 'none';
-
   vclockStop();
   currentTime = 0; videoDuration = 0;
   musicPlayerState = { playing:false, time:0, duration:0, title:'' };
-
   playBtn.disabled = false; prevBtn.disabled = false; nextBtn.disabled = false;
   prevMarkBtn.disabled = false; nextMarkBtn.disabled = false;
   speedSel.disabled = true; fullscreenBtn.disabled = false;
   exportVidBtn.disabled = true;
-
   progress.disabled = false; progress.max = String(IFRAME_MAX_SECONDS);
-
   timeDisplay.classList.remove('editable','live-mode');
   timeDisplay.classList.add('music-mode');
   timeDisplay.title = '音乐模式：时间由音乐播放器同步';
@@ -625,32 +606,19 @@ function startMusicMode(){
   progressWrap.classList.add('music-progress');
   progressWrap.classList.remove('live-progress','iframe-mode');
   canvas.classList.remove('iframe-pad-bottom');
-
   musicBtn.classList.add('music');
   musicBtn.textContent = '音乐模式';
   musicIndicator.classList.add('show');
-
   manualTimeHint.classList.remove('show');
-
   updateProgressUI();
   updateStageSize();
-
-   /* ★ 按实际卡片数决定是否显示两侧面板：有卡片就展开，无卡片自动隐藏 */
-  renderCards();
-  /* ★ 音乐模式：默认折叠两侧卡片面板，让音乐器占满 */
-  panelCollapsed.left = true;
-  panelCollapsed.right = true;
-  updatePanelToggle('left');
-  updatePanelToggle('right');
-
-  editMode = true; // 视频工具的编辑/播放状态在音乐模式下不用，但保持为 true 以保证其他逻辑兼容
+  editMode = true;
   renderTimeline();
   scheduleRender();
   updateModeUI();
   updateUI();
   updateClockTagUI();
   updatePlayBtnUI();
-
   toast('音乐模式已开启 · 浏览模式可直接操作播放器，点工具或按 M 切到绘制');
 }
 
@@ -666,30 +634,17 @@ function stopMusicMode(){
   try { iframeEl.src = 'about:blank'; } catch(_){}
   iframeEl.style.display = 'none';
   canvas.classList.remove('iframe-pad-bottom');
-  /* 恢复侧边卡片面板（按已有标注重新计算） */
-  renderCards();
-  /* ★ 退出音乐模式：恢复面板展开状态 */
-  panelCollapsed.left = false;
-  panelCollapsed.right = false;
-  updatePanelToggle('left');
-  updatePanelToggle('right');
   updateModeUI();
   updateUI();
   updateClockTagUI();
   toast('已退出音乐模式');
 }
 
-function toggleMusicMode(){
-  if (musicMode) stopMusicMode(); else startMusicMode();
-}
+function toggleMusicMode(){ if (musicMode) stopMusicMode(); else startMusicMode(); }
 musicBtn.addEventListener('click', toggleMusicMode);
 
-/* 发送控制消息给音乐播放器 */
-function sendToMusicPlayer(msg){
-  try { iframeEl.contentWindow.postMessage(msg, '*'); return true; } catch(_){ return false; }
-}
+function sendToMusicPlayer(msg){ try { iframeEl.contentWindow.postMessage(msg, '*'); return true; } catch(_){ return false; } }
 
-/* 当 iframe 加载完成时 */
 iframeEl.addEventListener('load', () => {
   if (!musicMode) return;
   musicIframeReady = true;
@@ -697,7 +652,6 @@ iframeEl.addEventListener('load', () => {
   updateMusicIndicator();
 });
 
-/* 接收音乐播放器的状态推送 */
 window.addEventListener('message', (e) => {
   const d = e.data || {};
   if (d.type === 'music-ready' && videoSource === 'music'){
@@ -728,14 +682,14 @@ function updateMusicIndicator(){
 }
 
 /* ================= 虚拟时钟 ================= */
-function vclockStart(){ 
-  if (videoSource === 'local') return; 
-  if (vclock.running) return; 
-  vclock.running = true; 
-  vclock.lastTs = performance.now(); 
-  vclock.rafId = requestAnimationFrame(vclockLoop); 
-  updatePlayBtnUI(); 
-  updateClockTagUI(); 
+function vclockStart(){
+  if (videoSource === 'local') return;
+  if (vclock.running) return;
+  vclock.running = true;
+  vclock.lastTs = performance.now();
+  vclock.rafId = requestAnimationFrame(vclockLoop);
+  updatePlayBtnUI();
+  updateClockTagUI();
 }
 function vclockStop(){ if (!vclock.running) return; vclock.running = false; if (vclock.rafId) cancelAnimationFrame(vclock.rafId); vclock.rafId = null; updatePlayBtnUI(); updateClockTagUI(); }
 function vclockLoop(now){ if (!vclock.running) return; const dt = (now - vclock.lastTs) / 1000; vclock.lastTs = now; currentTime += dt; if (currentTime >= IFRAME_MAX_SECONDS){ currentTime = IFRAME_MAX_SECONDS; vclockStop(); } updateProgressUI(); updateLiveIndicator(); scheduleRender(); vclock.rafId = requestAnimationFrame(vclockLoop); }
@@ -758,13 +712,10 @@ function updateClockTagUI(){
   else { clockTag.classList.remove('show','running','live','music'); }
 }
 
-/* 模式切换 */
 function setEditMode(on){ editMode = !!on; updateModeUI(); }
 
-/* ★ 核心：updateModeUI 里区分音乐模式和视频模式 */
 function updateModeUI(){
   if (musicMode){
-    /* 音乐模式：不锁死画布；模式按钮变成"浏览/绘制"切换 */
     canvas.classList.remove('no-interact');
     toolGroup.style.opacity = ''; toolGroup.style.pointerEvents = '';
     textOpts.style.opacity = ''; strokeOpts.style.opacity = '';
@@ -780,7 +731,6 @@ function updateModeUI(){
     updateCursor();
     return;
   }
-  /* 视频模式（本机 / iframe）：保持原来的编辑 / 播放逻辑 */
   if (editMode){
     canvas.classList.remove('no-interact'); modeBtn.textContent = '✏️ 编辑模式'; modeBtn.classList.add('primary'); modeBtn.classList.remove('play');
     playIndicator.classList.remove('show');
@@ -796,11 +746,9 @@ function updateModeUI(){
   updateCursor();
 }
 
-/* ★ 模式按钮点击：音乐模式下切换浏览/绘制，视频模式下保持原逻辑 */
 modeBtn.addEventListener('click', () => {
   if (musicMode){
     musicBrowseMode = !musicBrowseMode;
-    /* 切到浏览模式时，把已选中的工具切换回选择工具，避免误操作 */
     if (musicBrowseMode){ commitText(); }
     updateModeUI(); updateUI();
     toast(musicBrowseMode ? '🖐 浏览模式 · 可直接操作播放器' : '✏️ 绘制模式 · 在画面上加标注');
@@ -818,7 +766,6 @@ function initPanelResize(){
       e.preventDefault(); e.stopPropagation();
       const side = handle.dataset.resize;
       const panel = side === 'left' ? cardsLeft : cardsRight;
-      if (panel.classList.contains('empty')) return;
       const startX = e.clientX, startW = panel.offsetWidth;
       handle.setPointerCapture(e.pointerId);
       document.body.style.cursor = 'ew-resize';
@@ -828,7 +775,7 @@ function initPanelResize(){
     });
   });
 }
-/* ★ 侧边栏折叠按钮 */
+/* 侧边栏折叠按钮 */
 const panelCollapsed = { left: false, right: false };
 function updatePanelToggle(side){
   const panel = side === 'left' ? cardsLeft : cardsRight;
@@ -890,8 +837,6 @@ function renderCards(){
   const bySide = { left: [], right: [] };
   for (const c of cards) bySide[c.side === 'right' ? 'right' : 'left'].push(c);
   for (const k of ['left','right']) bySide[k].sort((a,b) => (a.time||0) - (b.time||0));
-  cardsLeft.classList.toggle('empty', bySide.left.length === 0);
-  cardsRight.classList.toggle('empty', bySide.right.length === 0);
   applyPanelWidths();
   for (const side of ['left','right']){
     const panel = side === 'left' ? cardsLeft : cardsRight;
@@ -928,7 +873,7 @@ function layoutCards(){
   const scaleY = wr.height / videoNatH;
   for (const side of ['left','right']){
     const panel = side === 'left' ? cardsLeft : cardsRight;
-    if (panel.classList.contains('empty')) continue;
+    if (panel.classList.contains('collapsed')) continue;
     const panelRect = panel.getBoundingClientRect();
     const cards = annotations.filter(a => a.type === 'card' && (a.side === 'right' ? 'right' : 'left') === side).sort((a,b) => (a.anchorY||0) - (b.anchorY||0));
     const PAD = 8;
@@ -1023,13 +968,16 @@ function hitHandle(p){
 /* 舞台 */
 function updateStageSize(){
   if (!videoLoaded) return;
-  let cw, ch;
-  if (musicMode) {
-    cw = Math.max(100, stage.clientWidth - 40);
-    ch = Math.max(60, stage.clientHeight - 40);
-  } else {
-    cw = videoNatW; ch = videoNatH;
+  /* ★ 音乐模式：iframe 直接填满 stage，面板展开/收起时自动跟随 */
+  if (musicMode){
+    stageInner.style.width = '100%';
+    stageInner.style.height = '100%';
+    canvas.width = Math.max(100, stage.clientWidth - 40);
+    canvas.height = Math.max(60, stage.clientHeight - 40);
+    renderAll(); layoutCards(); scheduleLinks();
+    return;
   }
+  const cw = videoNatW, ch = videoNatH;
   const availW = Math.max(100, stage.clientWidth-40);
   const availH = Math.max(60, stage.clientHeight-40);
   const baseScale = Math.min(availW/cw, availH/ch, 1);
@@ -1223,10 +1171,7 @@ function promptManualTime(){
 timeDisplay.addEventListener('click', () => { if (liveMode) return; if (musicMode){ promptManualTime(); return; } if (videoSource !== 'iframe') return; promptManualTime(); });
 
 playBtn.addEventListener('click', () => {
-  if (musicMode){
-    sendToMusicPlayer({ type: 'ctrl-toggle' });
-    return;
-  }
+  if (musicMode){ sendToMusicPlayer({ type: 'ctrl-toggle' }); return; }
   if (liveMode){ toast('直播模式下时间持续流逝，无法暂停。你继续编辑，点工具那一刻会被记录'); return; }
   if (videoSource === 'local' && videoLoaded){ if (videoEl.paused) videoEl.play(); else videoEl.pause(); return; }
   if (videoSource === 'iframe'){ if (vclock.running){ vclockStop(); toast('虚拟时钟已暂停'); } else { vclockStart(); toast('虚拟时钟已启动'); } }
@@ -1323,9 +1268,9 @@ function loadIframeVideo(url){
   progress.disabled = false; progress.max = String(IFRAME_MAX_SECONDS);
   timeDisplay.classList.add('editable'); timeDisplay.classList.remove('music-mode'); editIcon.style.display = 'inline';
   progressWrap.classList.add('iframe-mode'); progressWrap.classList.remove('music-progress');
-    canvas.classList.add('iframe-pad-bottom');   // ★ 底部留空，B站控件可点击
+  canvas.classList.add('iframe-pad-bottom');
   updateProgressUI(); updateStageSize(); renderTimeline(); scheduleRender(); updateUI(); updateClockTagUI(); updatePlayBtnUI();
-  setEditMode(true);                            // ★ 默认就是编辑模式，直接能画
+  setEditMode(true);
   manualTimeHint.classList.add('show'); setTimeout(() => manualTimeHint.classList.remove('show'), 10000);
   toast('已嵌入在线视频。直播请点「🎥 直播模式」');
 }
@@ -1333,15 +1278,10 @@ function loadIframeVideo(url){
 /* 工具栏 */
 liveBtn.addEventListener('click', toggleLiveMode);
 
-/* ★ 工具选择：音乐浏览模式下，点击工具自动切到绘制模式 */
 toolGroup.addEventListener('click', e => {
   if (e.target.closest('#shapeBtn')) return; if (e.target.closest('#moreBtn')) return;
   const btn = e.target.closest('button[data-tool]'); if (!btn) return;
-  /* 音乐浏览模式下，用户点击工具 = 想加标注，自动切到绘制模式 */
-  if (musicMode && musicBrowseMode){
-    musicBrowseMode = false;
-    updateModeUI();
-  }
+  if (musicMode && musicBrowseMode){ musicBrowseMode = false; updateModeUI(); }
   if (!musicMode && !editMode){ toast('请先切换到编辑模式'); return; }
   const t = btn.dataset.tool;
   if (t === tool && !SHAPE_TOOLS.includes(t)) return;
@@ -1357,7 +1297,6 @@ shapeDrop.querySelector('.dropdown-menu').addEventListener('click', e => { const
 moreDrop.querySelector('.dropdown-menu').addEventListener('click', e => {
   const btn = e.target.closest('button[data-more]'); if (!btn) return; e.stopPropagation();
   const act = btn.dataset.more; moreDrop.classList.remove('open');
-  /* 音乐浏览模式下，点"更多工具"里的项也自动切到绘制模式 */
   if (musicMode && musicBrowseMode && act !== 'image'){ musicBrowseMode = false; updateModeUI(); }
   if (act === 'highlight' || act === 'pen'){ commitText(); if (liveMode) recordPendingTime(); tool = act; selectedId = null; updateCursor(); updateUI(); scheduleRender(); return; }
   if (act === 'card'){ if (!videoLoaded){ toast('请先加载视频或音乐'); return; } commitText(); if (liveMode) recordPendingTime(); tool = 'card'; selectedId = null; updateCursor(); updateUI(); toast('在画面上点击创建侧边卡片'); return; }
@@ -1388,7 +1327,6 @@ imageInsertInput.addEventListener('change', async e => {
     pushHistory(deepCopy(annotations));
     const a = { id: idSeq++, type: 'image', x: (videoNatW-w)/2, y: (videoNatH-h)/2, w, h, _src: dataUrl, time: stampTime(), duration: DEFAULT_DURATION };
     annotations.push(a); selectedId = a.id; tool = 'select';
-    /* 切回选择工具后，保持绘制模式（音乐模式下也可以主动切回浏览） */
     if (musicMode){ musicBrowseMode = false; updateModeUI(); }
     updateCursor(); updateUI(); renderTimeline(); scheduleRender(); syncToolbarFromSelection(); scheduleAutosave();
     toast('图片已插入');
@@ -1784,9 +1722,7 @@ function drawCardsColumn(c, cards, colX, colW, videoX, side, t){
   }
 }
 
-/* =========================================================
-   录制系统
-   ========================================================= */
+/* 录制系统 */
 function updateRecTimer(){
   let total = recElapsedMs;
   if (recState === 'recording') total += Date.now() - recStartTs;
@@ -1831,7 +1767,6 @@ async function startRecordingSession(){
   if (recState !== 'idle') return;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){ toast('当前浏览器不支持屏幕录制'); return; }
   if (recordedBlob){ recordedBlob = null; updateRecUI(); }
-
   recState = 'preparing';
   updateRecUI();
   toast('请在弹出的系统窗口中选择要录制的屏幕 / 窗口，并勾选是否分享音频');
@@ -1845,28 +1780,17 @@ async function startRecordingSession(){
     if (err.name !== 'NotAllowedError') toast('录制启动失败：' + err.message);
     return;
   }
-
   let finalRatio = recSettings.regionRatio;
   if (recSettings.mode === 'region' && !finalRatio){
     finalRatio = await pickRegionOnVideo();
-    if (!finalRatio){
-      try { stream.getTracks().forEach(t => t.stop()); } catch(_){}
-      recState = 'idle'; updateRecUI();
-      toast('已取消录制');
-      return;
-    }
+    if (!finalRatio){ try { stream.getTracks().forEach(t => t.stop()); } catch(_){} recState = 'idle'; updateRecUI(); toast('已取消录制'); return; }
     recSettings.regionRatio = finalRatio;
     saveRecSettings();
   }
-
   recState = 'countdown';
   updateRecUI();
   await showRecCountdown(3);
-  if (recState !== 'countdown'){
-    try { stream.getTracks().forEach(t => t.stop()); } catch(_){}
-    return;
-  }
-
+  if (recState !== 'countdown'){ try { stream.getTracks().forEach(t => t.stop()); } catch(_){} return; }
   let finalStream = stream;
   activeSourceStream = null;
   if (recSettings.mode === 'region' && finalRatio){
@@ -1880,10 +1804,8 @@ async function startRecordingSession(){
       finalStream = cropped.stream;
     } catch(err){ console.warn('区域裁剪失败，退化为全屏录制', err); }
   }
-
   beginNewRecorder(finalStream, stream);
 }
-
 function pauseRecording(){ if (recState !== 'recording') return; if (mediaRecorder && mediaRecorder.state === 'recording'){ try { mediaRecorder.pause(); } catch(_){} } recElapsedMs += Date.now() - recStartTs; recState = 'paused'; updateRecTimer(); updateRecUI(); toast('已暂停录制'); }
 function resumeRecording(){ if (recState !== 'paused') return; if (mediaRecorder && mediaRecorder.state === 'paused'){ try { mediaRecorder.resume(); } catch(_){} } recStartTs = Date.now(); recState = 'recording'; updateRecTimer(); updateRecUI(); toast('继续录制'); }
 function stopRecordingSession(){
@@ -1985,7 +1907,6 @@ async function createCroppedStreamFromScreen(sourceStream, ratio){
   const screenYCss = vpY + ratio.y * vpH;
   const screenWCss = ratio.w * vpW;
   const screenHCss = ratio.h * vpH;
-
   const video = document.createElement('video');
   video.srcObject = sourceStream;
   video.muted = true; video.playsInline = true; video.autoplay = true;
@@ -1998,7 +1919,6 @@ async function createCroppedStreamFromScreen(sourceStream, ratio){
     setTimeout(ok, 1000);
   });
   if (!video.videoWidth || !video.videoHeight){ await new Promise(r => setTimeout(r, 200)); }
-
   const streamW = video.videoWidth || 1920;
   const streamH = video.videoHeight || 1080;
   const ratioX = streamW / window.screen.width;
@@ -2007,15 +1927,12 @@ async function createCroppedStreamFromScreen(sourceStream, ratio){
   const ry = Math.max(0, Math.round(screenYCss * ratioY));
   const rw = Math.max(2, Math.round(screenWCss * ratioX));
   const rh = Math.max(2, Math.round(screenHCss * ratioY));
-
   const canvas = document.createElement('canvas');
   canvas.width = rw; canvas.height = rh;
   const cx = canvas.getContext('2d', { alpha: false });
-
   let rafId = null;
   function draw(){ if (video.readyState >= 2){ try { cx.drawImage(video, rx, ry, rw, rh, 0, 0, rw, rh); } catch(_){} } rafId = requestAnimationFrame(draw); }
   draw();
-
   const stream = canvas.captureStream(30);
   const audioTracks = sourceStream.getAudioTracks();
   if (audioTracks.length) stream.addTrack(audioTracks[0]);
@@ -2066,7 +1983,6 @@ function openRecSettingsPanel(){
   let tempRatio = initRatio;
   const regionSection = overlay.querySelector('#regionSection');
   const regionInfo = overlay.querySelector('#regionInfo');
-
   overlay.querySelectorAll('.mode-btns button').forEach(btn => {
     btn.addEventListener('click', () => {
       tempMode = btn.dataset.mode;
@@ -2074,7 +1990,6 @@ function openRecSettingsPanel(){
       regionSection.style.display = tempMode === 'region' ? '' : 'none';
     });
   });
-
   overlay.querySelector('#pickRegionBtn').addEventListener('click', async () => {
     overlay.style.display = 'none';
     const ratio = await pickRegionOnVideo();
@@ -2084,21 +1999,17 @@ function openRecSettingsPanel(){
       regionInfo.innerHTML = `已保存：<code>x:${(ratio.x*100).toFixed(1)}%  y:${(ratio.y*100).toFixed(1)}%  w:${(ratio.w*100).toFixed(1)}%  h:${(ratio.h*100).toFixed(1)}%</code>`;
       overlay.querySelector('#clearRegionBtn').disabled = false;
       toast('区域已选定，别忘了点保存');
-    } else {
-      toast('已取消框选');
-    }
+    } else { toast('已取消框选'); }
   });
   overlay.querySelector('#clearRegionBtn').addEventListener('click', () => {
     tempRatio = null;
     regionInfo.textContent = '尚未设置区域。首次录制时会自动弹出框选，也可以点右侧按钮提前框选';
     overlay.querySelector('#clearRegionBtn').disabled = true;
   });
-
   function close(){ overlay.remove(); }
   overlay.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', close));
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
   document.addEventListener('keydown', function esc(e){ if (e.key === 'Escape'){ close(); document.removeEventListener('keydown', esc); } });
-
   overlay.querySelector('#saveRecSettings').addEventListener('click', () => {
     if (tempMode === 'region' && !tempRatio){ toast('请先在窗口上框选一块区域，或首次录制时自动框选'); return; }
     recSettings.mode = tempMode;
@@ -2125,9 +2036,7 @@ function pickRegionOnVideo(){
     hint.className = 'region-picker-hint';
     hint.textContent = '拖动鼠标框选要录制的区域（可框选整个窗口任意位置）· 松开确认 · Esc 取消';
     document.body.appendChild(hint);
-
     let selStart = null, selEnd = null, selecting = false;
-
     function getLocal(e){
       const r = overlay.getBoundingClientRect();
       return { x: clamp(e.clientX - r.left, 0, r.width), y: clamp(e.clientY - r.top, 0, r.height), w: r.width, h: r.height };
@@ -2196,7 +2105,6 @@ function openHelpPanel(){
 
 /* UI */
 function updateCursor(){
-  /* ★ 音乐模式 + 浏览状态：canvas 鼠标穿透，用户可直接操作音乐播放器 */
   if (musicMode && musicBrowseMode){
     canvas.style.pointerEvents = 'none';
     canvas.style.cursor = 'default';
@@ -2234,7 +2142,6 @@ window.addEventListener('keydown', e => {
   if (e.ctrlKey && (e.key === 'F9' || e.key === 'F10')) return;
 
   if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey){
-    /* ★ 音乐模式下 M 键切换浏览/绘制 */
     if (musicMode){
       musicBrowseMode = !musicBrowseMode;
       if (musicBrowseMode){ commitText(); }
@@ -2281,7 +2188,7 @@ document.addEventListener('click', e => {
   shapeDrop.classList.remove('open'); moreDrop.classList.remove('open'); emojiPopover.classList.remove('open'); exportVidDrop.classList.remove('open');
 });
 
-updateModeUI(); updateUI(); updateCursor(); updatePlayBtnUI(); updateClockTagUI(); applyPanelWidths(); initPanelResize(); updateRecUI();
+updateModeUI(); updateUI(); updateCursor(); updatePlayBtnUI(); updateClockTagUI(); applyPanelWidths(); initPanelResize(); initPanelToggle(); updateRecUI();
 setTimeout(() => { toast('Ctrl+F9 开始录制（先选窗口 → 框选 → 3 秒倒计时）'); }, 900);
 setTimeout(tryRestoreAutoSave, 500);
 })();
