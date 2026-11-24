@@ -440,7 +440,12 @@ const DEFAULT_DURATION = 3, MIN_FONT = 8, MAX_FONT = 200, MIN_WIDTH = 1, MAX_WID
 const TICK_INTERVAL = 1/30, IFRAME_MAX_SECONDS = 3600*4;
 const MIN_PANEL_W = 80, MAX_PANEL_W = 420;
 const REC_SETTINGS_KEY = 'video-annotation-rec-settings-v4';
-const MUSIC_PLAYER_URL = './music/index.html';
+/* 音乐播放器地址：本页在 /label/ 下，播放器在同站 /music/index.html
+   ../music/index.html  →  /music/index.html（仓库根，最新版）
+   若你的目录结构不同，只改这一行即可；也可写绝对地址 https://satoko-ashe.github.io/music/index.html */
+const MUSIC_PLAYER_URL = '../music/index.html';
+/* 备用地址：找不到上面那个时的第二选择（同目录副本） */
+const MUSIC_PLAYER_FALLBACK = './music/index.html';
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas'), ctx = canvas.getContext('2d');
@@ -501,6 +506,8 @@ let liveMode = false, livePendingTime = null, liveStartTime = 0;
 let musicMode = false, musicBrowseMode = true;
 let musicPlayerState = { playing: false, time: 0, duration: 0, title: '' };
 let musicIframeReady = false;
+let musicGotAnyState = false;
+let musicHandshakeTimer = null;
 
 let recState = 'idle';
 let mediaRecorder = null;
@@ -588,6 +595,8 @@ function startMusicMode(){
   videoEl.style.display = 'none';
   iframeEl.style.display = '';
   musicIframeReady = false;
+  musicGotAnyState = false;
+  clearTimeout(musicHandshakeTimer);
   iframeEl.src = MUSIC_PLAYER_URL;
   videoNatW = 1280; videoNatH = 720;
   stageInner.style.display = ''; emptyEl.style.display = 'none';
@@ -625,6 +634,8 @@ function stopMusicMode(){
   if (!musicMode) return;
   musicMode = false;
   musicBrowseMode = true;
+  musicGotAnyState = false;
+  clearTimeout(musicHandshakeTimer);
   musicBtn.classList.remove('music');
   musicIndicator.classList.remove('show');
   timeDisplay.classList.remove('music-mode');
@@ -642,22 +653,46 @@ function stopMusicMode(){
 function toggleMusicMode(){ if (musicMode) stopMusicMode(); else startMusicMode(); }
 musicBtn.addEventListener('click', toggleMusicMode);
 
-function sendToMusicPlayer(msg){ try { iframeEl.contentWindow.postMessage(msg, '*'); return true; } catch(_){ return false; } }
+function musicTargetOrigin(){
+  const u = new URL(MUSIC_PLAYER_URL, location.href);
+  return u.origin;
+}
+function sendToMusicPlayer(msg){
+  try {
+    const win = iframeEl.contentWindow;
+    if (!win) return false;
+    win.postMessage(msg, musicTargetOrigin());
+    return true;
+  } catch(_){
+    try { iframeEl.contentWindow.postMessage(msg, '*'); return true; } catch(__){ return false; }
+  }
+}
 
 iframeEl.addEventListener('load', () => {
   if (!musicMode) return;
   musicIframeReady = true;
-  setTimeout(() => { sendToMusicPlayer({ type: 'music-request-state' }); }, 500);
+  setTimeout(() => { sendToMusicPlayer({ type: 'music-request-state' }); }, 300);
+  setTimeout(() => { sendToMusicPlayer({ type: 'music-request-state' }); }, 1200);
   updateMusicIndicator();
+  // 握手看门狗：3 秒内没收到 music-state，说明播放器的同步桥没装或地址不对
+  clearTimeout(musicHandshakeTimer);
+  musicHandshakeTimer = setTimeout(() => {
+    if (!musicMode || musicGotAnyState) return;
+    toast('播放器没回传时间轴：请确认 ../music/index.html 能打开，且该文件里已加入“对外同步桥”代码');
+  }, 3000);
 });
 
 window.addEventListener('message', (e) => {
+  // 只接受音乐播放器那个 iframe 发来的消息，避免其他内嵌页面串台
+  if (musicMode && iframeEl.contentWindow && e.source && e.source !== iframeEl.contentWindow) return;
   const d = e.data || {};
   if (d.type === 'music-ready' && videoSource === 'music'){
     musicIframeReady = true;
     sendToMusicPlayer({ type: 'music-request-state' });
     updateMusicIndicator();
   } else if (d.type === 'music-state' && videoSource === 'music'){
+    musicGotAnyState = true;
+    musicIframeReady = true;
     musicPlayerState = {
       playing: !!d.playing,
       time: Number(d.time) || 0,
@@ -670,6 +705,7 @@ window.addEventListener('message', (e) => {
     updateProgressUI();
     updateMusicIndicator();
     updatePlayBtnUI();
+    updateUI();
     scheduleRender();
   }
 });
